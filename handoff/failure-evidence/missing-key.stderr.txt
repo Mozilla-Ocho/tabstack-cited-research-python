@@ -1,0 +1,1 @@
+TABSTACK_API_KEY is not set. Export it in your shell; the CLI never accepts it as a flag.

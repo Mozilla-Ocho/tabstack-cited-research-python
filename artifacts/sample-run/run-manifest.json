@@ -1,0 +1,52 @@
+{
+  "application_retries": 0,
+  "architecture": "arm64",
+  "cited_page_count": 7,
+  "completed_at_utc": "2026-09-15T19:00:24.874Z",
+  "credit_evidence": {
+    "notes": "Do not infer final call cost from the public per-action rate.",
+    "source": "unavailable",
+    "unit": "credits",
+    "value": null
+  },
+  "duration_ms": 20299,
+  "error": null,
+  "event_counts": {
+    "complete": 1,
+    "iteration:end": 1,
+    "iteration:start": 1,
+    "planning:end": 1,
+    "planning:start": 1,
+    "searching:end": 1,
+    "searching:start": 1,
+    "start": 1,
+    "writing:end": 1,
+    "writing:start": 1
+  },
+  "event_sequence": [
+    "start",
+    "planning:start",
+    "planning:end",
+    "iteration:start",
+    "searching:start",
+    "searching:end",
+    "iteration:end",
+    "writing:start",
+    "writing:end",
+    "complete"
+  ],
+  "fetch_timeout_seconds": null,
+  "first_event_ms": 1064,
+  "mode": "fast",
+  "nocache": true,
+  "os": "Darwin 25.6.0",
+  "pages_analyzed": 7.0,
+  "python_version": "3.12.13",
+  "query_sha256": "b3ae1985a9974471e7f0adc17e962b26719384d320ada505fc43ffa219c33e2e",
+  "repository_commit": "759f10a6f41e2a3ebeaaeab588daaa535ed56346",
+  "schema_version": 1,
+  "sdk_max_retries": 2,
+  "started_at_utc": "2026-09-15T19:00:04.556Z",
+  "tabstack_version": "2.8.5",
+  "terminal_status": "complete"
+}

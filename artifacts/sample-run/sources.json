@@ -1,0 +1,114 @@
+[
+  {
+    "id": "HfVyz_",
+    "url": "https://docs.ollama.com/capabilities/web-search.md",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "ollama add search functionality",
+      "ollama rag web search",
+      "ollama external tools web search",
+      "ollama search api output",
+      "ollama application web scraping"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "AzmiqW",
+    "url": "http://docs.ollama.com/capabilities/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "ollama add search functionality",
+      "ollama rag web search",
+      "ollama external tools web search",
+      "ollama search api output",
+      "ollama application web scraping"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "PFYKsU",
+    "url": "https://ollama.com/blog/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "ollama add search functionality",
+      "ollama rag web search",
+      "ollama external tools web search",
+      "ollama search api output",
+      "ollama application web scraping"
+    ],
+    "title": "Web search · Ollama Blog",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "wi5Ilh",
+    "url": "https://docs.ollama.com/capabilities/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "ollama add search functionality",
+      "ollama rag web search",
+      "ollama external tools web search",
+      "ollama search api output",
+      "ollama application web scraping"
+    ],
+    "title": "Web search - Ollama documentation",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "BQd081",
+    "url": "https://ollama.com/blog/web-search-subagents-claude-code",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "ollama add search functionality",
+      "ollama rag web search",
+      "ollama external tools web search",
+      "ollama search api output",
+      "ollama application web scraping"
+    ],
+    "title": "Subagents and web search in Claude Code · Ollama Blog",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "2GMLsI",
+    "url": "https://medium.com/@tdolan21/building-an-llm-powered-web-scraper-with-ollama-and-playwright-6274d5d938b5",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "ollama add search functionality",
+      "ollama rag web search",
+      "ollama external tools web search",
+      "ollama search api output",
+      "ollama application web scraping"
+    ],
+    "title": "Building an LLM Powered Web Scraper with Ollama and Playwright",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "uqSIdk",
+    "url": "https://github.com/Zachdj27/AI-Web-Scraper",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "ollama add search functionality",
+      "ollama rag web search",
+      "ollama external tools web search",
+      "ollama search api output",
+      "ollama application web scraping"
+    ],
+    "title": "GitHub - Zachdj27/AI-Web-Scraper: A Web Scrapper built with Ollama 3.1",
+    "relevance": null,
+    "reliability": null
+  }
+]

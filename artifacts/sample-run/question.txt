@@ -1,0 +1,1 @@
+What are the current ways to add web search to an Ollama-based application, and what output does each approach return?

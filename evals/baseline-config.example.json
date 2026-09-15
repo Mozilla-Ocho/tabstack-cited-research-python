@@ -1,0 +1,33 @@
+{
+  "search": {
+    "provider": "serper",
+    "api_version": "google.serper.dev/search (no versioned path; record response date)",
+    "notes": "Set SEARCH_PROVIDER-matching SEARCH_API_KEY in the environment. Alternatives: brave."
+  },
+  "fetch": {
+    "implementation": "httpx.Client(follow_redirects=True) + stdlib html.parser text extraction",
+    "httpx_version": "record from uv.lock at protocol commit",
+    "user_agent": "cited-research-eval/0.1 (+https://github.com/<org>/tabstack-cited-research-python)"
+  },
+  "model": {
+    "provider": "TO DECIDE: the model the team would realistically deploy for this job",
+    "base_url": "https://api.openai.com/v1",
+    "id": "TO DECIDE: exact model id, e.g. gpt-4.1 or a local model via Ollama /v1",
+    "temperature": 0,
+    "rationale": "Record why this is the realistic choice, not the weakest."
+  },
+  "limits": {
+    "max_search_iterations": 3,
+    "max_queries_per_iteration": 3,
+    "max_results_per_query": 5,
+    "max_pages_fetched_total": 12,
+    "max_chars_per_page": 12000,
+    "max_total_source_chars": 60000,
+    "total_wall_clock_timeout_seconds": 300,
+    "application_retries": 0
+  },
+  "cost_sources": {
+    "search": "provider dashboard or published per-query price on run date",
+    "model": "usage.prompt_tokens / usage.completion_tokens in each response, times published rate"
+  }
+}

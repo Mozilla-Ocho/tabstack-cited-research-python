@@ -1,0 +1,18 @@
+start  Starting research
+planning:start  Planning research strategy
+planning:end  Planning complete: 6 queries
+iteration:start  iteration 1/1  Starting iteration 1 of 1
+searching:start  iteration 1  Searching with 6 queries
+searching:end  iteration 1  8 new urls  Found 8 URLs
+iteration:end  iteration 1  Iteration 1 complete (fast mode)
+writing:start  Writing report
+writing:end  Report draft complete
+complete  report -> artifacts/sample-run/report.md
+sources (7) -> artifacts/sample-run/sources.json
+  - Web search  https://docs.ollama.com/capabilities/web-search.md
+  - Web search  http://docs.ollama.com/capabilities/web-search
+  - Web search · Ollama Blog  https://ollama.com/blog/web-search
+  - Web search - Ollama documentation  https://docs.ollama.com/capabilities/web-search
+  - Subagents and web search in Claude Code · Ollama Blog  https://ollama.com/blog/web-search-subagents-claude-code
+  - Building an LLM Powered Web Scraper with Ollama and Playwright  https://medium.com/@tdolan21/building-an-llm-powered-web-scraper-with-ollama-and-playwright-6274d5d938b5
+  - GitHub - Zachdj27/AI-Web-Scraper: A Web Scrapper built with Ollama 3.1  https://github.com/Zachdj27/AI-Web-Scraper
