@@ -1,0 +1,33 @@
+{
+  "search": {
+    "provider": "brave",
+    "api_version": "Brave Web Search API, GET https://api.search.brave.com/res/v1/web/search (unversioned path; response date recorded per run)",
+    "notes": "SEARCH_API_KEY holds the Brave subscription token."
+  },
+  "fetch": {
+    "implementation": "httpx.Client(follow_redirects=True, timeout=30s) + stdlib html.parser text extraction",
+    "httpx_version": "0.28.1 (uv.lock)",
+    "user_agent": "cited-research-eval/0.1 (+https://github.com/Mozilla-Ocho/tabstack-cited-research-python)"
+  },
+  "model": {
+    "provider": "OpenAI",
+    "base_url": "https://api.openai.com/v1",
+    "id": "gpt-5.5-2026-04-23",
+    "temperature": null,
+    "rationale": "Current OpenAI flagship general model at a dated snapshot, so the run is reproducible. Not a mini or nano tier, so the baseline is not weakened; not a pro tier, which a team would not deploy for every query. The model rejects non-default temperature, so temperature is omitted (provider default 1)."
+  },
+  "limits": {
+    "max_search_iterations": 3,
+    "max_queries_per_iteration": 3,
+    "max_results_per_query": 5,
+    "max_pages_fetched_total": 12,
+    "max_chars_per_page": 12000,
+    "max_total_source_chars": 60000,
+    "total_wall_clock_timeout_seconds": 300,
+    "application_retries": 0
+  },
+  "cost_sources": {
+    "search": "Brave Search API plan pricing on the run date; count of search calls recorded per run",
+    "model": "usage.prompt_tokens and usage.completion_tokens from each response, times OpenAI published rate for gpt-5.5 on the run date"
+  }
+}

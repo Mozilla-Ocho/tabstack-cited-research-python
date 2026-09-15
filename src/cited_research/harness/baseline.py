@@ -158,8 +158,10 @@ class Baseline:
         body: Dict[str, Any] = {
             "model": self.cfg["model"]["id"],
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "temperature": self.cfg["model"].get("temperature", 0),
         }
+        temperature = self.cfg["model"].get("temperature")
+        if temperature is not None:
+            body["temperature"] = temperature
         if json_mode:
             body["response_format"] = {"type": "json_object"}
         r = self.http.post(
