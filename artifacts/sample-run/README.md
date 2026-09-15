@@ -18,7 +18,7 @@ described in the repository README.
 | Report length | 1,649 characters, one paragraph, inline [n] citations |
 | Python | 3.12.13, Darwin 25.6.0, arm64 |
 | tabstack | 2.8.5 (locked in `uv.lock`) |
-| Cost | unavailable: the API returns no usage, and no console balance was read around this call |
+| Cost | no credit amount available. Tabstack internal telemetry records `action_count = 1` for this call (fast mode); the public rate is 250 credits per fast Research action, so 250 is the implied but unreceipted figure |
 
 Things worth noticing in `sources.json`: every `claims` array is empty; three of the seven URLs
 are the same Ollama documentation page in different forms; two sources are web-scraper tutorials

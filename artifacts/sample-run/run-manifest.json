@@ -4,8 +4,11 @@
   "cited_page_count": 7,
   "completed_at_utc": "2026-09-15T19:00:24.874Z",
   "credit_evidence": {
-    "notes": "Do not infer final call cost from the public per-action rate.",
-    "source": "unavailable",
+    "action_count": 1,
+    "notes": "Tabstack internal telemetry (PostHog project 338037, event api_request) for this call's trace_id records action_count=1, research_mode=fast, status 200, task_success=true. No credit amount is recorded on the event and no credit-transaction event exists for this call. The public rate is 250 credits per fast Research action; 1 action would imply 250 credits, but that is inference, not a receipt. Console balance was not read.",
+    "server_duration_ms": 19258,
+    "source": "internal telemetry: action_count only",
+    "trace_id": "10bb2475008e9261330c1cbb88b11b6c",
     "unit": "credits",
     "value": null
   },

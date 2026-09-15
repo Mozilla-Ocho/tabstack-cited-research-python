@@ -50,7 +50,7 @@ Works for the managed run: `evals/runs/20260915T192745-pilot/blind/` contains on
 ## Blockers before the full 12-question run
 
 1. System A frozen and committed (above).
-2. Cost capture plan for System B: read console balance before and after each paired block, or accept `unavailable` across the study and say so in the article.
+2. Cost capture plan for System B: internal `api_request` telemetry gives `action_count` per `trace_id` (both pilots: 1). Decide whether action_count x published rate is acceptable as the cost line (labelled as such) or whether a console balance delta per paired block is required.
 3. A second evaluator named (the builder cannot be the sole scorer).
 4. Decide runs per cell: 1 (exploratory) or 3.
 5. Decide whether Q01 pilot outputs are discarded (default) before the full run.

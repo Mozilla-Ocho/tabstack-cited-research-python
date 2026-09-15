@@ -45,7 +45,7 @@ Files: `handoff/failure-evidence/`.
 6. **`metadata.metrics` is typed in the SDK but never on the wire.** The API strips it server-side.
 7. **Report shape in fast mode:** a single paragraph, no headings, no Sources section even when the query asks for one (pilot). Citations are inline [n] only; the reader must join them to `citedPages` by order.
 8. **Source selection in fast mode admitted off-topic pages.** Two of seven Build-run sources are "build a web scraper with Ollama" tutorials (Medium, GitHub); the report then lists "custom web scrapers" as a way to add web search. That is a source-quality observation for the evaluation, not a bug.
-9. **No usage or cost in the response, no usage API.** Cost is `unavailable` for both runs. The console shows a balance; nobody read it before/after.
+9. **No usage or cost in the response, no usage API.** With Tessa's PostHog key, the internal `api_request` events for both calls were retrieved by `trace_id`: each records `action_count = 1`, `research_mode = fast`, `task_success = true`, server-side `duration_ms` 19,258 (Build run) and 14,278 (pilot). No credit amount is on the event and no credit-transaction event exists. At the public 250 credits per fast Research action, one action implies 250 credits per call; the article can say "one action" from telemetry but must label 250 as the implied rate, not a receipt. Note for the pricing page: it says Research runs "a variable number of actions per call"; both fast-mode calls here ran exactly one action despite 7 and 5 pages analyzed. Source is internal telemetry, so cite it as "Tabstack request telemetry" and not by tool name.
 
 ## Friction
 
@@ -60,4 +60,4 @@ Files: `handoff/failure-evidence/`.
 - One run per question. Nothing here is a benchmark.
 - Not executed on Python 3.9 despite the declared floor.
 - `terminal.png` is a rendering of the captured stdout, not a screenshot of a live terminal.
-- Cost unavailable.
+- No credit receipt. Action count from internal telemetry only.

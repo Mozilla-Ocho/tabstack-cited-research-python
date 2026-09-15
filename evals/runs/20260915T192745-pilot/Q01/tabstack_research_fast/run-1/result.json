@@ -25,9 +25,9 @@
     "model_cost": null,
     "model_input_tokens": null,
     "model_output_tokens": null,
-    "notes": "Tabstack exposes no per-call usage in the API response. Record console credit balance before/after the paired block, or mark unavailable.",
+    "notes": "Tabstack internal telemetry (PostHog project 338037, event api_request) for this call's trace_id records action_count=1, research_mode=fast, status 200, task_success=true. No credit amount is recorded on the event and no credit-transaction event exists for this call. The public rate is 250 credits per fast Research action; 1 action would imply 250 credits, but that is inference, not a receipt. Console balance was not read. server_duration_ms=14278 trace_id=b939e59a9b1359df6b38a80f1475d8c3",
     "search_cost": null,
-    "source": "unavailable",
+    "source": "internal telemetry: action_count only",
     "tabstack_credits": null
   },
   "usage_receipt_path": "evals/runs/20260915T192745-pilot/Q01/tabstack_research_fast/run-1/usage-receipt.json"
