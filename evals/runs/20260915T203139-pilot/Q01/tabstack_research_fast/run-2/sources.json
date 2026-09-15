@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ZFVq8I",
+    "url": "https://docs.ollama.com/capabilities/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration official",
+      "Ollama search API documentation",
+      "Ollama RAG web search",
+      "Ollama external tools integration",
+      "Ollama search result format",
+      "Ollama function calling web search"
+    ],
+    "title": "Web search - Ollama",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "RU13qR",
+    "url": "https://docs.ollama.com/capabilities/web-search.md",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration official",
+      "Ollama search API documentation",
+      "Ollama RAG web search",
+      "Ollama external tools integration",
+      "Ollama search result format",
+      "Ollama function calling web search"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "kwe1f_",
+    "url": "https://ollama.com/blog/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration official",
+      "Ollama search API documentation",
+      "Ollama RAG web search",
+      "Ollama external tools integration",
+      "Ollama search result format",
+      "Ollama function calling web search"
+    ],
+    "title": "Web search · Ollama Blog",
+    "relevance": null,
+    "reliability": null
+  }
+]

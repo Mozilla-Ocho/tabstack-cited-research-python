@@ -1,0 +1,35 @@
+{
+  "cost_sources": {
+    "model": "usage.prompt_tokens and usage.completion_tokens from each response, times OpenAI published rate for gpt-5.5 on the run date",
+    "search": "Brave Search API plan pricing on the run date; count of search calls recorded per run"
+  },
+  "fetch": {
+    "httpx_version": "0.28.1 (uv.lock)",
+    "implementation": "httpx.Client(follow_redirects=True, timeout=30s) + stdlib html.parser text extraction",
+    "user_agent": "cited-research-eval/0.1 (+https://github.com/Mozilla-Ocho/tabstack-cited-research-python)"
+  },
+  "limits": {
+    "application_retries": 0,
+    "max_chars_per_page": 12000,
+    "max_pages_fetched_total": 12,
+    "max_queries_per_iteration": 3,
+    "max_results_per_query": 5,
+    "max_search_iterations": 3,
+    "max_total_source_chars": 60000,
+    "total_wall_clock_timeout_seconds": 300
+  },
+  "model": {
+    "base_url": "https://api.openai.com/v1",
+    "id": "gpt-5.5-2026-04-23",
+    "provider": "OpenAI",
+    "rationale": "Current OpenAI flagship general model at a dated snapshot, so the run is reproducible. Not a mini or nano tier, so the baseline is not weakened; not a pro tier, which a team would not deploy for every query. The model rejects non-default temperature, so temperature is omitted (provider default 1).",
+    "temperature": null
+  },
+  "output_instruction": "Answer the question directly. Support material factual claims with citations to public source URLs. Distinguish sourced facts from interpretation. State when evidence is incomplete or conflicting. End with a Sources section listing only sources used in the answer.",
+  "search": {
+    "api_version": "Brave Web Search API, GET https://api.search.brave.com/res/v1/web/search (unversioned path; response date recorded per run)",
+    "notes": "SEARCH_API_KEY holds the Brave subscription token.",
+    "provider": "brave"
+  },
+  "system_id": "search_fetch_model"
+}

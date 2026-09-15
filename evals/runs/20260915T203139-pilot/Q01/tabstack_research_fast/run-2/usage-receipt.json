@@ -1,0 +1,11 @@
+{
+  "currency": "USD",
+  "fetch_cost": null,
+  "model_cost": null,
+  "model_input_tokens": null,
+  "model_output_tokens": null,
+  "notes": "Tabstack request telemetry for trace_id 1b03c2d4ca0c8a09a24ca8624ec1f200: action_count=1, research_mode=fast, task_success=true, server duration_ms=15948. No credit amount on the event. Public rate 250 credits per fast action; 1 action implies 250 credits, labelled inference, not a receipt.",
+  "search_cost": null,
+  "source": "internal telemetry: action_count only",
+  "tabstack_credits": null
+}

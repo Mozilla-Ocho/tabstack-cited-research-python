@@ -1,0 +1,7 @@
+Ollama provides several official interfaces to integrate web search into applications, primarily through a **REST API** and dedicated **Python** and **JavaScript libraries**. The **Web Search REST API** requires an API key for authentication and accepts a `POST` request to `https://ollama.com/api/web_search` with a `query` string and an optional `max_results` integer (defaulting to **5**, with a maximum of **10**) [1][2][3]. It returns an object containing an array of `results`, where each result object includes the `title` (string), `url` (string), and a `content` (string) snippet from the web page [1][2]. The **Python library** offers `ollama.web_search("query")` and returns a similar structured object [3]. Additionally, the Python library includes a `web_fetch` function, which, when given a URL, returns a `WebFetchResponse` object containing the `title` and `content` of that specific page [1][2][3]. Similarly, the **JavaScript library** provides `client.webSearch({ query: "query" })`, which also returns a JSON object mirroring the REST API's structured output [3]. Finally, the **MCP (Model Context Protocol) Server** serves as an integration mechanism, allowing web search to be enabled in various clients like Cline, Codex, and Goose by leveraging the underlying web search API and its defined return structure [1][2][3].
+
+---
+### Sources
+*   [1] Web search - Ollama. https://docs.ollama.com/capabilities/web-search
+*   [2] Web search. https://docs.ollama.com/capabilities/web-search.md
+*   [3] Web search · Ollama Blog. https://ollama.com/blog/web-search

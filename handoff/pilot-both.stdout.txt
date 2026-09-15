@@ -1,0 +1,3 @@
+Q01 tabstack_research_fast ... complete 16666 ms
+Q01 search_fetch_model ... complete 69434 ms
+results -> evals/runs/20260915T203139-pilot/results.csv  (pilot_only=true)

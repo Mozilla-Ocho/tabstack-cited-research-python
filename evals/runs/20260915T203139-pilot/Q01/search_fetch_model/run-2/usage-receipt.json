@@ -1,0 +1,11 @@
+{
+  "source": "provider response usage fields (model tokens); search call count",
+  "search_cost": null,
+  "fetch_cost": null,
+  "model_cost": null,
+  "model_input_tokens": 16494,
+  "model_output_tokens": 5712,
+  "tabstack_credits": null,
+  "currency": "USD",
+  "notes": "search_calls=7; pages_fetched=9; fetch_failures=0. Convert tokens to cost with the provider's published rate on the run date; record that rate in PROVE-PREFLIGHT."
+}

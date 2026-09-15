@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "url": "https://docs.ollama.com/capabilities/web-search",
+    "title": "Web search - Ollama",
+    "query": "What are the official ways to add web search to an Ollama-based application, and what does each official interface return?"
+  },
+  {
+    "id": 2,
+    "url": "https://ollama.com/blog/web-search",
+    "title": "Web search · Ollama Blog",
+    "query": "What are the official ways to add web search to an Ollama-based application, and what does each official interface return?"
+  },
+  {
+    "id": 3,
+    "url": "https://docs.openclaw.ai/tools/ollama-search",
+    "title": "Ollama web search · OpenClaw",
+    "query": "What are the official ways to add web search to an Ollama-based application, and what does each official interface return?"
+  },
+  {
+    "id": 4,
+    "url": "https://github.com/Webhuis/ollama-websearch",
+    "title": "GitHub - Webhuis/ollama-websearch: The complete guide to web search in Ollama — SearXNG, Google, Bing. Tested on Debian 13.",
+    "query": "What are the official ways to add web search to an Ollama-based application, and what does each official interface return?"
+  },
+  {
+    "id": 5,
+    "url": "https://www.reddit.com/r/ollama/comments/1grlewl/adding_web_search_to_ollama_server/",
+    "title": "r/ollama on Reddit: Adding web search to Ollama server",
+    "query": "What are the official ways to add web search to an Ollama-based application, and what does each official interface return?"
+  },
+  {
+    "id": 6,
+    "url": "https://docs.ollama.com/openapi.yaml",
+    "title": "Ollama",
+    "query": "site:docs.ollama.com web_search Ollama API returns results title url content"
+  },
+  {
+    "id": 7,
+    "url": "https://docs.ollama.com/api/introduction",
+    "title": "Introduction - Ollama",
+    "query": "site:docs.ollama.com web_search Ollama API returns results title url content"
+  },
+  {
+    "id": 8,
+    "url": "https://docs.ollama.com/",
+    "title": "Ollama's documentation - Ollama",
+    "query": "site:docs.ollama.com web_search Ollama API returns results title url content"
+  },
+  {
+    "id": 9,
+    "url": "https://docs.ollama.com/capabilities/tool-calling",
+    "title": "Tool calling - Ollama",
+    "query": "site:docs.ollama.com web_search Ollama API returns results title url content"
+  }
+]

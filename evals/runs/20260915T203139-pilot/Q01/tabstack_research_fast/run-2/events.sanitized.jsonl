@@ -1,0 +1,10 @@
+{"event": "start", "message": "Starting research", "received_at_utc": "2026-09-15T20:31:40.437Z", "timestamp": 1789504300479.0}
+{"event": "planning:start", "message": "Planning research strategy", "received_at_utc": "2026-09-15T20:31:40.438Z", "timestamp": 1789504300479.0}
+{"complexity": "simple", "event": "planning:end", "message": "Planning complete: 6 queries", "received_at_utc": "2026-09-15T20:31:41.491Z", "timestamp": 1789504301545.0}
+{"event": "iteration:start", "iteration": 1.0, "max_iterations": 1.0, "message": "Starting iteration 1 of 1", "received_at_utc": "2026-09-15T20:31:41.492Z", "timestamp": 1789504301545.0}
+{"event": "searching:start", "iteration": 1.0, "message": "Searching with 6 queries", "received_at_utc": "2026-09-15T20:31:41.492Z", "timestamp": 1789504301545.0}
+{"event": "searching:end", "iteration": 1.0, "message": "Found 8 URLs", "received_at_utc": "2026-09-15T20:31:43.246Z", "timestamp": 1789504303267.0, "urls_found": 8.0, "urls_new": 8.0}
+{"event": "iteration:end", "iteration": 1.0, "message": "Iteration 1 complete (fast mode)", "received_at_utc": "2026-09-15T20:31:43.247Z", "timestamp": 1789504303267.0}
+{"attempt": 1.0, "event": "writing:start", "message": "Writing report", "received_at_utc": "2026-09-15T20:31:43.247Z", "timestamp": 1789504303267.0}
+{"attempt": 1.0, "event": "writing:end", "message": "Report draft complete", "received_at_utc": "2026-09-15T20:31:56.380Z", "timestamp": 1789504316418.0}
+{"cited_page_count": 3, "event": "complete", "message": "Research complete", "pages_analyzed": 3.0, "received_at_utc": "2026-09-15T20:31:56.381Z", "report_chars": 1576, "timestamp": 1789504316418.0}

@@ -1,0 +1,26 @@
+{"event": "iteration_start", "iteration": 1, "queries": 1, "received_at_utc": "2026-09-15T20:31:56.387Z"}
+{"event": "search", "query": "What are the official ways to add web search to an Ollama-based application, and what does each official interface return?", "received_at_utc": "2026-09-15T20:31:57.024Z", "results": 5}
+{"chars": 10808, "event": "fetch", "received_at_utc": "2026-09-15T20:31:57.387Z", "url": "https://docs.ollama.com/capabilities/web-search"}
+{"chars": 10060, "event": "fetch", "received_at_utc": "2026-09-15T20:31:57.598Z", "url": "https://ollama.com/blog/web-search"}
+{"chars": 10205, "event": "fetch", "received_at_utc": "2026-09-15T20:31:58.033Z", "url": "https://docs.openclaw.ai/tools/ollama-search"}
+{"chars": 11425, "event": "fetch", "received_at_utc": "2026-09-15T20:31:58.969Z", "url": "https://github.com/Webhuis/ollama-websearch"}
+{"chars": 0, "event": "fetch", "received_at_utc": "2026-09-15T20:31:59.157Z", "url": "https://www.reddit.com/r/ollama/comments/1grlewl/adding_web_search_to_ollama_server/"}
+{"event": "model_call", "input_tokens": 269, "output_tokens": 365, "received_at_utc": "2026-09-15T20:32:05.045Z"}
+{"done": false, "event": "plan", "iteration": 1, "new_queries": 3, "received_at_utc": "2026-09-15T20:32:05.045Z"}
+{"event": "iteration_start", "iteration": 2, "queries": 3, "received_at_utc": "2026-09-15T20:32:05.045Z"}
+{"event": "search", "query": "site:docs.ollama.com web_search Ollama API returns results title url content", "received_at_utc": "2026-09-15T20:32:05.550Z", "results": 5}
+{"chars": 12000, "event": "fetch", "received_at_utc": "2026-09-15T20:32:06.039Z", "url": "https://docs.ollama.com/openapi.yaml"}
+{"chars": 2553, "event": "fetch", "received_at_utc": "2026-09-15T20:32:06.157Z", "url": "https://docs.ollama.com/api/introduction"}
+{"chars": 1616, "event": "fetch", "received_at_utc": "2026-09-15T20:32:06.263Z", "url": "https://docs.ollama.com/"}
+{"chars": 12000, "event": "fetch", "received_at_utc": "2026-09-15T20:32:06.395Z", "url": "https://docs.ollama.com/capabilities/tool-calling"}
+{"event": "search", "query": "site:github.com/ollama/ollama-python web_search return type Ollama Python", "received_at_utc": "2026-09-15T20:32:06.802Z", "results": 5}
+{"event": "search", "query": "site:github.com/ollama/ollama-js webSearch return type Ollama JavaScript", "received_at_utc": "2026-09-15T20:32:07.261Z", "results": 5}
+{"event": "model_call", "input_tokens": 342, "output_tokens": 324, "received_at_utc": "2026-09-15T20:32:12.798Z"}
+{"done": false, "event": "plan", "iteration": 2, "new_queries": 3, "received_at_utc": "2026-09-15T20:32:12.799Z"}
+{"event": "iteration_start", "iteration": 3, "queries": 3, "received_at_utc": "2026-09-15T20:32:12.799Z"}
+{"event": "search", "query": "site:github.com/ollama/ollama-js webSearch Ollama JavaScript SDK web search return results", "received_at_utc": "2026-09-15T20:32:13.379Z", "results": 5}
+{"event": "search", "query": "site:github.com/ollama/ollama-python web_search Ollama Python SDK return results", "received_at_utc": "2026-09-15T20:32:13.780Z", "results": 5}
+{"event": "search", "query": "site:docs.ollama.com web_search OpenAI compatible Ollama returns", "received_at_utc": "2026-09-15T20:32:14.117Z", "results": 5}
+{"event": "model_call", "input_tokens": 342, "output_tokens": 455, "received_at_utc": "2026-09-15T20:32:20.087Z"}
+{"done": false, "event": "plan", "iteration": 3, "new_queries": 3, "received_at_utc": "2026-09-15T20:32:20.088Z"}
+{"event": "model_call", "input_tokens": 15541, "output_tokens": 4568, "received_at_utc": "2026-09-15T20:33:05.817Z"}
