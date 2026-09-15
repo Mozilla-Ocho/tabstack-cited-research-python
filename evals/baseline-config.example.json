@@ -7,7 +7,7 @@
   "fetch": {
     "implementation": "httpx.Client(follow_redirects=True) + stdlib html.parser text extraction",
     "httpx_version": "record from uv.lock at protocol commit",
-    "user_agent": "cited-research-eval/0.1 (+https://github.com/<org>/tabstack-cited-research-python)"
+    "user_agent": "cited-research-eval/0.1 (+https://github.com/Mozilla-Ocho/tabstack-cited-research-python)"
   },
   "model": {
     "provider": "TO DECIDE: the model the team would realistically deploy for this job",

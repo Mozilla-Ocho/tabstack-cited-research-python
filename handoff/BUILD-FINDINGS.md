@@ -4,7 +4,7 @@ Observations only. No conclusions about typical behavior, cost, accuracy, or oth
 
 ## Identity
 
-- Repository: local at `~/Dev/tabstack-cited-research-python`, branch `main`. **Not yet pushed**; remote and name pending Tessa's decision.
+- Repository: https://github.com/Mozilla-Ocho/tabstack-cited-research-python (public), branch `main`.
 - Implementation commit (used for the production run): `759f10a6f41e2a3ebeaaeab588daaa535ed56346`
 - Protocol commit (evals/ frozen before the pilot): `116d90191c6d900a97779ac0fc07dc9ffcfc229a`
 - License: MIT. Secret scan: the API key value and common token patterns are absent from the tree (grep-based; see TEST-OUTPUT for versions). No gitleaks binary on this machine.

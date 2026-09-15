@@ -34,7 +34,7 @@ never written to any output file.
 ## Run it
 
 ```bash
-git clone <this repo> && cd tabstack-cited-research-python
+git clone https://github.com/Mozilla-Ocho/tabstack-cited-research-python.git && cd tabstack-cited-research-python
 uv sync --frozen
 export TABSTACK_API_KEY=...
 
