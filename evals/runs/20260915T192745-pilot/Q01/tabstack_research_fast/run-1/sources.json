@@ -1,0 +1,82 @@
+[
+  {
+    "id": "ASCxQh",
+    "url": "https://docs.ollama.com/capabilities/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration",
+      "Ollama search API",
+      "Ollama add web search",
+      "Ollama search output format",
+      "Ollama RAG web search",
+      "Ollama official search tools"
+    ],
+    "title": "Web search - Ollama",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "qB_lzK",
+    "url": "https://docs.ollama.com/capabilities/web-search.md",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration",
+      "Ollama search API",
+      "Ollama add web search",
+      "Ollama search output format",
+      "Ollama RAG web search",
+      "Ollama official search tools"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "prqKJD",
+    "url": "https://ollama.com/blog/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration",
+      "Ollama search API",
+      "Ollama add web search",
+      "Ollama search output format",
+      "Ollama RAG web search",
+      "Ollama official search tools"
+    ],
+    "title": "Web search · Ollama Blog",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "-0YPgz",
+    "url": "https://ollama.com//blog/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration",
+      "Ollama search API",
+      "Ollama add web search",
+      "Ollama search output format",
+      "Ollama RAG web search",
+      "Ollama official search tools"
+    ],
+    "title": "Web search · Ollama Blog",
+    "relevance": null,
+    "reliability": null
+  },
+  {
+    "id": "h_Og-k",
+    "url": "https://dev.to/aairom/testing-ollama-web-search-and-a-thinking-model-1dh7",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration",
+      "Ollama search API",
+      "Ollama add web search",
+      "Ollama search output format",
+      "Ollama RAG web search",
+      "Ollama official search tools"
+    ],
+    "title": "Testing Ollama Web Search 🔍 and a Thinking Model 💭",
+    "relevance": null,
+    "reliability": null
+  }
+]

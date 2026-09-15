@@ -1,0 +1,22 @@
+# Clean quality gate, 2026-09-15T19:28:18Z
+
+$ uv sync --frozen
+[2mChecked [1m23 packages[0m [2min 0.61ms[0m[0m
+
+$ uv run --frozen pytest -q
+.................                                                                                                                         [100%]
+17 passed in 0.34s
+
+$ uv run --frozen ruff check .
+All checks passed!
+
+$ uv run --frozen pyright
+0 errors, 0 warnings, 0 informations
+
+$ uv run --frozen python -c "import sys, tabstack; print(sys.version.split()[0], tabstack.__version__)"
+3.12.13 2.8.5
+
+$ uv --version
+uv 0.11.6 (65950801c 2026-04-09 aarch64-apple-darwin)
+$ uname -sm
+Darwin arm64

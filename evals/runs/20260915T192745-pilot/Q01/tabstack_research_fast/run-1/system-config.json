@@ -1,0 +1,12 @@
+{
+  "application_retries": 0,
+  "endpoint": "/research",
+  "fetch_timeout": null,
+  "mode": "fast",
+  "nocache": true,
+  "output_instruction": "Answer the question directly. Support material factual claims with citations to public source URLs. Distinguish sourced facts from interpretation. State when evidence is incomplete or conflicting. End with a Sources section listing only sources used in the answer.",
+  "provider": "Tabstack",
+  "sdk": "tabstack==2.8.5",
+  "sdk_transport_retries_default": 2,
+  "system_id": "tabstack_research_fast"
+}

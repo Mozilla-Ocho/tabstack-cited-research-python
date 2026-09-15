@@ -1,0 +1,2 @@
+Q01 tabstack_research_fast ... complete 14634 ms
+results -> evals/runs/20260915T192745-pilot/results.csv  (pilot_only=true)
