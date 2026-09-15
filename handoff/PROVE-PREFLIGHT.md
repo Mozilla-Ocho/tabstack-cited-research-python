@@ -42,7 +42,7 @@ Two pilot batches. Batch 1 (`evals/runs/20260915T192745-pilot/`, run 1) ran the 
 | System | Batch | Status | Duration | Observations |
 |---|---|---|---|---|
 | tabstack_research_fast | 1 | complete | 14,634 ms (first event 376 ms) | 5 cited pages, all `claims` empty, 2 URL variants of one page, no Sources section |
-| tabstack_research_fast | 2 | complete | 16,666 ms (first event 720 ms) | 3 cited pages (2 variants of the same docs page + the blog post), 1,577 chars, no Sources section |
+| tabstack_research_fast | 2 | complete | 16,666 ms (first event 720 ms) | 3 cited pages (2 variants of the same docs page + the blog post), 1,577 chars, this time with a Sources section |
 | search_fetch_model | 2 | complete | 69,434 ms | 7 Brave searches, 9 pages fetched, 0 fetch failures, 16,494 input + 5,712 output tokens; 3,879 chars with a Direct answer, numbered citations, and a Sources section |
 
 `pilot_only=true` on every row. Pilot outputs are for harness validation and are excluded from any denominator. No quality scoring was done on them; the answer-quality differences above are size and structure only.
