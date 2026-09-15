@@ -1,0 +1,2 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"searching:start","data":{"message":"Searching","timestamp":1789420001200,"iteration":1,"queries":["q1"]}}

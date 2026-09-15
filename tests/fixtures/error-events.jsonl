@@ -1,0 +1,3 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"planning:start","data":{"message":"Planning","timestamp":1789420000100}}
+{"event":"error","data":{"message":"Research failed","timestamp":1789420000500,"activity":"planning","iteration":1,"error":{"name":"SyntheticError","message":"synthetic task-level failure for fixture test","stack":"Error: at secret_internal_frame.js:1"}}}

@@ -1,0 +1,10 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"planning:start","data":{"message":"Planning","timestamp":1789420000100}}
+{"event":"planning:end","data":{"message":"Plan ready","timestamp":1789420001000,"complexity":"simple","objective":"obj","plan":"plan","queries":["q1"],"questions":["qq"]}}
+{"event":"iteration:start","data":{"message":"Iteration 1","timestamp":1789420001100,"iteration":1,"maxIterations":1,"queries":["q1"]}}
+{"event":"searching:start","data":{"message":"Searching","timestamp":1789420001200,"iteration":1,"queries":["q1"]}}
+{"event":"searching:end","data":{"message":"Found pages","timestamp":1789420003000,"iteration":1,"urlsFound":5,"urlsNew":5}}
+{"event":"iteration:end","data":{"message":"Iteration done","timestamp":1789420003100,"iteration":1,"totalPagesAnalyzed":5,"newPagesAnalyzed":5,"urlsAnalyzed":5}}
+{"event":"writing:start","data":{"message":"Writing","timestamp":1789420003200,"attempt":1}}
+{"event":"writing:end","data":{"message":"Written","timestamp":1789420009000,"attempt":1}}
+{"event":"complete","data":{"message":"Research complete","timestamp":1789420009100,"report":"# Synthetic report\n\nA claim [1].\n","metadata":{"executedQueries":[["q1"]],"mode":"fast","prompt":"synthetic question","queryComplexity":"simple","researchObjective":"obj","researchPlan":"plan","researchQuestions":["qq"],"totalPagesAnalyzed":5,"citedPages":[{"id":"pg_1","url":"https://example.org/doc","title":"Example doc","claims":["A claim"],"sourceQueries":["q1"],"fullText":"SHOULD NOT BE PUBLISHED","summary":"private summary"}]}}}

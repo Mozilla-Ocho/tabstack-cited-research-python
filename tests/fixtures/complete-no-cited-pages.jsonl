@@ -1,0 +1,2 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"complete","data":{"message":"Research complete","timestamp":1789420009100,"report":"# Report without citations\n","metadata":{"executedQueries":[["q1"]],"mode":"fast","prompt":"synthetic","queryComplexity":"simple","researchObjective":"obj","researchPlan":"plan","researchQuestions":[],"totalPagesAnalyzed":0}}}
