@@ -6,7 +6,7 @@ or reliability.
 ## Identity and status
 
 - Repo https://github.com/Mozilla-Ocho/tabstack-cited-research-python, branch `week-3-trace` off
-  `main@6325338`, **not pushed** (push pending; no PR or merge). Implementation: `7746971` (`src/`,
+  `main@6325338`, pushed; [PR #1](https://github.com/Mozilla-Ocho/tabstack-cited-research-python/pull/1) open against `main`, not merged. Implementation: `7746971` (`src/`,
   `tests/`, `pyproject.toml` and `uv.lock` are unchanged from there to the branch tip). Worked-
   example run at `7fe5f20` (its manifest says `82b9be9`, the same tree before a message rewrite);
   reproduction run at `98be5ca`. `tabstack==2.8.5` (lockfile unchanged), uv 0.11.28,
@@ -90,4 +90,4 @@ Checked word for word against the raw HTML of the [guide](https://docs.tabstack.
 
 Technical-reviewer sign-off (`TECHNICAL-REVIEW.md`). A reproduction by a second engineer (this one
 used the same machine). Coverage scoring (required elements were not frozen before the output was
-read). Editorial decisions in `EDITORIAL-NOTES.md`. Push, PR and merge.
+read). Editorial decisions in `EDITORIAL-NOTES.md`. Merge of PR #1.
