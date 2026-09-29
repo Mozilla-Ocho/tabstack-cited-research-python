@@ -181,6 +181,13 @@ def append_jsonl(path: Path, record: Dict[str, Any]) -> None:
         fh.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def _umask_mode() -> int:
+    # mkstemp creates 0600 files; give atomic writes the same mode a plain open() would.
+    mask = os.umask(0)
+    os.umask(mask)
+    return 0o666 & ~mask
+
+
 def write_jsonl_atomic(path: Path, records: Iterable[Dict[str, Any]]) -> None:
     """Write the whole log at once via a temp file and rename, so readers never see a partial."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -189,6 +196,7 @@ def write_jsonl_atomic(path: Path, records: Iterable[Dict[str, Any]]) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             for record in records:
                 fh.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+        os.chmod(tmp, _umask_mode())
         os.replace(tmp, path)
     except BaseException:
         if os.path.exists(tmp):
@@ -202,6 +210,7 @@ def write_text_atomic(path: Path, text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
             fh.write(text)
+        os.chmod(tmp, _umask_mode())
         os.replace(tmp, path)
     except BaseException:
         if os.path.exists(tmp):
