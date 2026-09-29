@@ -48,21 +48,23 @@ used by the frozen Prove harness is unchanged. 62 offline tests pass
   post says any cloud model (C08). The output half of the question is the weakly supported part.
 - Grep-based secrets scan clean (no gitleaks). Cost not measured.
 
-## Docs correspondence (guide and API reference, read 2026-09-29)
+## Docs correspondence
 
-| Topic | Guide | API reference | Observed / SDK |
+Checked word for word against the raw HTML of the [guide](https://docs.tabstack.ai/guides/research)
+(sha256 `da3615b8…`) and the [API reference](https://docs.tabstack.ai/api/resources/agent/methods/research)
+(sha256 `8788f2b0…`), fetched 2026-09-29T18:57:44Z. Quotes are exact.
+
+| Topic | Guide | API reference | Observed / SDK 2.8.5 |
 |---|---|---|---|
-| `timestamp` | ISO-8601 string | number (ms) | float ms; SDK `float`. **Guide wrong** |
-| `claims` | "specific statements drawn from that page" | strings extracted from page | `[]` in fast mode, 3 of 3 |
-| `reliability` | string | low/medium/high | absent in fast mode |
-| Event names | lifecycle plus balanced-only list | 22 names plus `error` | matches the SDK union; fast sent 10 |
-| `done` event | none | none | none |
-| Total timeout | none server-side; watch silence | not stated | SDK sets 600 s client-side |
-| `iteration:end` | `isLast`, `stopReason` | in SDK types | now allowlisted |
-| `citedPages` order | not stated | not stated | SDK: "ordered by first citation appearance" |
-
-The pages were read through a fetch-and-summarize tool; recheck the wording against the live
-pages before quoting.
+| `timestamp` | "ISO-8601 string for when the event was emitted" | `timestamp : number` | float, epoch ms; SDK `float`. **Guide wrong** |
+| `claims` | "the specific statements drawn from that page" | `claims : array of string` | `[]` on 3 of 3 pages (15 of 15 across fast runs) |
+| Cited-page order | not stated | "ordered by first citation appearance" | same text in the SDK docstring; markers matched it |
+| `reliability` | optional, "absent for this source" in the example | optional `"low"`, `"medium"` or `"high"` | absent in fast mode |
+| Terminal event | "complete fires once, at the end" | no mention of `done` | no `done`; stream closed after `complete` |
+| Total timeout | "There is no server-side timeout on the request as a whole" | not stated | SDK sets 600 s client-side |
+| Client timeout | "Watch for stream silence instead" | not stated | `--silence-timeout` implements this |
+| `iteration:end` | "Adds isLast and an optional stopReason" | `isLast : boolean`, `stopReason` | now allowlisted |
+| `query` length | not stated | "Maximum 10,000 characters" | not validated client-side; over-limit behavior not tested |
 
 ## Not done
 
