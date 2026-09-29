@@ -1,0 +1,3 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"complete","data":{"message":"Research complete","timestamp":1789420001000,"report":"One [1].\n","metadata":{"totalPagesAnalyzed":1,"citedPages":[{"id":"p1","url":"https://example.org/1","claims":[],"sourceQueries":[]}]}}}
+{"event":"complete","data":{"message":"Research complete","timestamp":1789420001001,"report":"Two [1].\n","metadata":{"totalPagesAnalyzed":1,"citedPages":[]}}}

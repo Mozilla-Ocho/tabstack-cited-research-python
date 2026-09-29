@@ -1,0 +1,3 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"complete","data":{"message":"Research complete","timestamp":1789420001000,"report":"One [1].\n","metadata":{"totalPagesAnalyzed":1,"citedPages":[]}}}
+{"event":"error","data":{"message":"Research failed","timestamp":1789420001001,"error":{"name":"Late","message":"late error"}}}

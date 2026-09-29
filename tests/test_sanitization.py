@@ -27,6 +27,8 @@ def test_sanitizer_drops_denied_keys_and_nested_payloads() -> None:
     )
     assert set(record) == {
         "event",
+        "known_event",
+        "timestamp_type",
         "received_at_utc",
         "message",
         "timestamp",
