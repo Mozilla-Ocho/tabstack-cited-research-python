@@ -5,7 +5,7 @@ One live run. Nothing here measures typical latency, cost, accuracy, or reliabil
 ## Identity and status
 
 - Repo https://github.com/Mozilla-Ocho/tabstack-cited-research-python, branch `week-3-trace` off
-  `main@6325338`, **not pushed**. Live run at `82b9be9`. `tabstack==2.8.5` (lockfile unchanged),
+  `main@6325338`, **not pushed**. Live run at `7fe5f20` (the manifest says `82b9be9`, the same tree before a message rewrite). `tabstack==2.8.5` (lockfile unchanged),
   Python 3.12.13, uv 0.11.28, macOS 25.5.0 arm64.
 - Week 1: built here. Week 2: **not built** (no `ApplicationResponse` anywhere), so the trace
   runs on the Week 1 CLI. The review sheet follows the Week 3 Understand draft ("What makes a
