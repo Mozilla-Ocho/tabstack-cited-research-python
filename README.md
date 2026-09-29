@@ -202,9 +202,12 @@ match the docs.
 
 ## Data flow
 
-The question and the retrieved page content are processed by Tabstack and, for research, by
-third-party models under Tabstack's contracts. Read the
-[Tabstack Privacy Notice](https://tabstack.ai/legal/privacy) before sending confidential input.
+Your question goes to Tabstack, and Tabstack fetches public pages to answer it. The
+[Tabstack Privacy Notice](https://tabstack.ai/legal/privacy) (last updated 2026-09-16) says
+inputs are run through LLMs offered by third parties, and that history, including your content
+and outputs, is stored for 90 days unless you delete it. Use public, non-sensitive questions with
+this example. For anything private, get engineering and legal review before calling the hosted
+API.
 
 ## License
 

@@ -1,12 +1,16 @@
 # Week 3 Build findings: trace a question from request to source-backed answer
 
-One live run. Nothing here measures typical latency, cost, accuracy, or reliability.
+Two live runs of one question. Nothing here measures typical latency, cost, accuracy, variance,
+or reliability.
 
 ## Identity and status
 
 - Repo https://github.com/Mozilla-Ocho/tabstack-cited-research-python, branch `week-3-trace` off
-  `main@6325338`, **not pushed**. Live run at `7fe5f20` (the manifest says `82b9be9`, the same tree before a message rewrite). `tabstack==2.8.5` (lockfile unchanged),
-  Python 3.12.13, uv 0.11.28, macOS 25.5.0 arm64.
+  `main@6325338`, **not pushed** (push pending; no PR or merge). Implementation: `7746971` (`src/`,
+  `tests/`, `pyproject.toml` and `uv.lock` are unchanged from there to the branch tip). Worked-
+  example run at `7fe5f20` (its manifest says `82b9be9`, the same tree before a message rewrite);
+  reproduction run at `98be5ca`. `tabstack==2.8.5` (lockfile unchanged), uv 0.11.28,
+  macOS 25.5.0 arm64. Offline tests pass on Python 3.12.13 and 3.9.
 - Week 1: built here. Week 2: **not built** (no `ApplicationResponse` anywhere), so the trace
   runs on the Week 1 CLI. The review sheet follows the Week 3 Understand draft ("What makes a
   citation useful", supplied in chat 2026-09-29): its nine rubric fields in order, with the CLI
@@ -24,7 +28,7 @@ always blank; `cited-research-review DIR` rebuilds it offline. Per-run diagram. 
 used by the frozen Prove harness is unchanged. 62 offline tests pass
 (`handoff/week-3/TEST-OUTPUT.txt`), also from a fresh `uv sync --frozen` clone with no key.
 
-## Observed: live run, 2026-09-29 18:23:24Z
+## Observed: worked-example run, 2026-09-29 18:23:24Z
 
 - `complete`, exit 0, 17,091 ms; first event 496 ms; the Week 1 sequence of 10 events, each
   once; the stream closed by itself after `complete`. Gaps by arrival: planning ~1.1 s,
@@ -46,7 +50,23 @@ used by the frozen Prove harness is unchanged. 62 offline tests pass
   The `1`s are qualifiers the report dropped or added: "snippet" becomes page content (C04),
   unstated MCP output format (C07), "Multi-Context Processor" (C06), "specific" models when the
   post says any cloud model (C08). The output half of the question is the weakly supported part.
-- Grep-based secrets scan clean (no gitleaks). Cost not measured.
+- Cost not measured.
+
+## Observed: fresh-clone reproduction, 2026-09-29 18:58:36Z
+
+Clone, `uv sync --frozen`, 62 tests with no key, then the README command
+(`artifacts/week-3-repro/`). `complete`, exit 0, 12,163 ms, the same 10 events, 5 cited pages
+(`claims: []`; `.md` duplicate flagged), 1 of 7 sentences uncited, `sdk_max_retries: 0`,
+`timestamp_raw` float, `iteration:end` with `is_last: true` and `stop_reason: max_iterations`.
+Different report and sources from the first run. Same machine, not a second engineer. Not
+reviewed.
+
+## Checks
+
+Technical-review checklist results: `TECHNICAL-REVIEW.md` (mapping, docs, safe sharing,
+diagrams; sign-off blank). The detect-secrets scan found only false positives, and the key is
+absent from all history. Editorial items (CTA, the trust line versus the Privacy Notice, the
+current-answers page): `EDITORIAL-NOTES.md`.
 
 ## Docs correspondence
 
@@ -68,7 +88,6 @@ Checked word for word against the raw HTML of the [guide](https://docs.tabstack.
 
 ## Not done
 
-Technical-reviewer check of the first-pass scores and sign-off; coverage (required elements over required elements, per
-the rubric) is not generated; second-engineer live reproduction; Python 3.9; content and
-security review before pushing (`report.md` and `sources.json` are committed on the branch, and
-pushing to the public repo would publish them).
+Technical-reviewer sign-off (`TECHNICAL-REVIEW.md`). A reproduction by a second engineer (this one
+used the same machine). Coverage scoring (required elements were not frozen before the output was
+read). Editorial decisions in `EDITORIAL-NOTES.md`. Push, PR and merge.
