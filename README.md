@@ -152,13 +152,36 @@ trace, or environment dump.
 
 ## Reviewing citations
 
-`review-sheet.csv` has one row per (report sentence, inline marker). Sentences without a marker
-get a row with `notes = no inline citation`. `[n]` is joined to the cited page at position `n`;
-the API does not state this join, so the reviewer checks it. `supporting_passage`, `judgment`
-(`supported`, `partially_supported`, `not_supported`, `source_unavailable`), `reviewer`, and
-`reviewed_at_utc` are always blank when generated. The columns are provisional until checked
-against the Understand-lane rubric. The API's own `claims` list is shown for context and is
-not verification; in fast mode it has been empty on every page so far.
+`review-sheet.csv` follows the per-claim record in the Week 3 Understand post, "What makes a
+citation useful". Its first nine columns are the rubric's, in order:
+
+| Column | Filled by | Content |
+|---|---|---|
+| `claim_id` | CLI | `C01`, `C02`, ... one per report sentence |
+| `answer_text` | CLI | the sentence, qualifiers included |
+| `citation_ids` | CLI | its inline markers, e.g. `[1][2]`; empty if none |
+| `source_url` | CLI, then reviewer | returned URLs for those markers; replace with the page you opened |
+| `passage` | reviewer | short supporting or contradicting excerpt |
+| `source_date_or_version` | reviewer | date or version, or `unknown` |
+| `retrieved_at_utc` | reviewer | when you opened the page |
+| `support` | reviewer | `2` supported at stated scope, `1` partial, `0` unsupported, `U` couldn't inspect |
+| `reason` | reviewer | one sentence naming the gap |
+
+Three helper columns follow and are not part of the rubric: `cited_page_ids`, `auto_flags`
+(no inline citation, marker with no cited page, not linked, likely duplicate page), and
+`api_claims`. Rows are candidates. Split, merge, or delete them until each row is one material
+claim. The CLI never fills `support`.
+
+`[n]` is joined to the cited page at position `n`. The SDK documents `cited_pages` as "ordered
+by first citation appearance"; the public guide does not say, so the reviewer confirms it. The
+API's own `claims` list is context, not verification; in fast mode it has been empty on every
+page so far.
+
+To rebuild the sheet for an existing run without another API call:
+
+```bash
+uv run cited-research-review artifacts/week-3-trace
+```
 
 ## Evaluation harness
 

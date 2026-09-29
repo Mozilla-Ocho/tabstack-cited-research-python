@@ -8,8 +8,9 @@ One live run. Nothing here measures typical latency, cost, accuracy, or reliabil
   `main@6325338`, **not pushed**. Live run at `82b9be9`. `tabstack==2.8.5` (lockfile unchanged),
   Python 3.12.13, uv 0.11.28, macOS 25.5.0 arm64.
 - Week 1: built here. Week 2: **not built** (no `ApplicationResponse` anywhere), so the trace
-  runs on the Week 1 CLI. Week 1 handoff files and the Understand rubric are not on this machine;
-  the review-sheet columns are **provisional**.
+  runs on the Week 1 CLI. The review sheet follows the Week 3 Understand draft ("What makes a
+  citation useful", supplied in chat 2026-09-29): its nine rubric fields in order, with the CLI
+  filling `claim_id`, `answer_text`, `citation_ids`, `source_url`, and a person filling the rest.
 
 ## Design
 
@@ -17,9 +18,10 @@ Single request and event loop; SDK retries off (`max_retries=0`) and no applicat
 Exits: 2 streamed error, 3 HTTP, 4 transport, 6 closed before terminal, 7 silence timeout,
 8 second terminal event. Timeline: `seq`, local monotonic `elapsed_ms`, `timestamp_raw` and
 `timestamp_type`, allowlisted counters, redacted messages; written atomically. Cited pages in
-returned order with link checks, duplicate flags, stripped credentials; `[]` becomes
-`review_needed_no_sources`. Blank-judgment review sheet and a per-run diagram. The Week 1 path
-used by the frozen Prove harness is unchanged. 59 offline tests pass
+returned order with link checks, duplicate flags (scheme, slash, `.md` variants), stripped
+credentials; `[]` becomes `review_needed_no_sources`. Rubric-shaped review sheet with `support`
+always blank; `cited-research-review DIR` rebuilds it offline. Per-run diagram. The Week 1 path
+used by the frozen Prove harness is unchanged. 61 offline tests pass
 (`handoff/week-3/TEST-OUTPUT.txt`), also from a fresh `uv sync --frozen` clone with no key.
 
 ## Observed: live run, 2026-09-29 18:23:24Z
@@ -30,13 +32,15 @@ used by the frozen Prove harness is unchanged. 59 offline tests pass
   bursts that share a timestamp; order comes from `seq`.
 - `timestamp`: a float in epoch ms on every event. 3 cited pages, `claims: []` on all (15 of 15
   pages across the three fast-mode runs so far). All pages share the same six `source_queries`.
-  Positions 1 and 2 are the same doc with and without `.md`.
+  Positions 1 and 2 are the same doc with and without `.md`; the rebuilt sheet flags C04's
+  `[1][2]` as one page, the same pattern the Understand post found in the Week 1 run.
 - 5 of 10 report sentences have no inline marker, including the endpoint, the API-key
   requirement, and `max_results` limits. Noticed during inspection (not a review): "MCP
   (Multi-Context Processor)", uncited.
-- This run predates two changes: its log field is `timestamp` (now `timestamp_raw`), and its
-  manifest shows `sdk_max_retries: 2` (now 0). One request was sent; whether the SDK retried
-  internally was not observable.
+- This run predates later changes: its log field is `timestamp` (now `timestamp_raw`), its
+  manifest shows `sdk_max_retries: 2` (now 0), and its diagram carries the older join caveat.
+  `review-sheet.csv` was regenerated offline in rubric form from the run's own `report.md` and
+  `sources.json`. One request was sent; whether the SDK retried internally was not observable.
 - Grep-based secrets scan clean (no gitleaks). Cost not measured.
 
 ## Docs correspondence (guide and API reference, read 2026-09-29)
@@ -50,12 +54,14 @@ used by the frozen Prove harness is unchanged. 59 offline tests pass
 | `done` event | none | none | none |
 | Total timeout | none server-side; watch silence | not stated | SDK sets 600 s client-side |
 | `iteration:end` | `isLast`, `stopReason` | in SDK types | now allowlisted |
+| `citedPages` order | not stated | not stated | SDK: "ordered by first citation appearance" |
 
 The pages were read through a fetch-and-summarize tool; recheck the wording against the live
 pages before quoting.
 
 ## Not done
 
-Reviewer judgments and sign-off; rubric reconciliation; second-engineer live reproduction; Python
-3.9; content and security review before pushing (`report.md` and `sources.json` are committed on
-the branch, and pushing to the public repo would publish them).
+Reviewer `support` scores and sign-off; coverage (required elements over required elements, per
+the rubric) is not generated; second-engineer live reproduction; Python 3.9; content and
+security review before pushing (`report.md` and `sources.json` are committed on the branch, and
+pushing to the public repo would publish them).

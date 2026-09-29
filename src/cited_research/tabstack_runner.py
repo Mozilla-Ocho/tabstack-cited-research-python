@@ -337,7 +337,7 @@ STANDING_CAVEATS = (
     "Timeline is a request lifecycle, not a source-level execution trace.",
     "complete is evidence the task terminated, not that citations are correct.",
     "API `claims` are machine-generated and do not verify the page.",
-    "Inline [n] markers are joined to cited_pages by position; the API does not state this join.",
+    "Inline [n] markers are joined to cited_pages by position (SDK: ordered by first citation).",
 )
 
 

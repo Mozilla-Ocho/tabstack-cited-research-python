@@ -58,7 +58,7 @@ def strip_credentials(url: str) -> str:
 
 
 def url_identity(url: str) -> str:
-    """Key that collapses the scheme, `www.`, trailing-slash and double-slash variants.
+    """Key that collapses scheme, `www.`, trailing-slash, double-slash and `.md` variants.
 
     Used only to flag likely duplicates for the reviewer. Nothing is merged or dropped.
     """
@@ -70,4 +70,7 @@ def url_identity(url: str) -> str:
     while "//" in path:
         path = path.replace("//", "/")
     path = path.rstrip("/")
+    # Docs sites (docs.ollama.com in both live runs) serve the same page at `/x` and `/x.md`.
+    if path.endswith(".md"):
+        path = path[:-3]
     return f"{host}{path}" + (f"?{parts.query}" if parts.query else "")

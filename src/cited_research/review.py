@@ -6,34 +6,37 @@ inline marker points at; a person fills in the passage and the judgment.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import io
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from .models import CitedPage
+from .models import CitedPage, load_cited_pages
+from .sanitize import write_text_atomic
 
-# Provisional until the Understand-lane rubric is checked against this header. Keep the order
-# stable; downstream tooling and the article reference these names.
-REVIEW_COLUMNS: Sequence[str] = (
-    "row_id",
+# The first nine columns are the Week 3 Understand rubric's per-claim record, in its order:
+# "What makes a citation useful", section "A rubric you can reuse". The CLI fills the first four
+# (claim_id, answer_text, citation_ids, source_url); a reviewer fills the other five.
+RUBRIC_COLUMNS: Sequence[str] = (
     "claim_id",
-    "report_excerpt",
-    "citation_marker",
-    "source_position",
-    "source_id",
+    "answer_text",
+    "citation_ids",
     "source_url",
-    "source_title",
-    "link_ok",
-    "api_claims_for_source",
-    "supporting_passage",
-    "judgment",
-    "reviewer",
-    "reviewed_at_utc",
-    "notes",
+    "passage",
+    "source_date_or_version",
+    "retrieved_at_utc",
+    "support",
+    "reason",
 )
-# Allowed values for `judgment`, filled in by a person. Empty means not yet reviewed.
-JUDGMENTS = ("supported", "partially_supported", "not_supported", "source_unavailable")
+# Generated context for the reviewer. Not part of the rubric; drop them when reporting scores.
+HELPER_COLUMNS: Sequence[str] = ("cited_page_ids", "auto_flags", "api_claims")
+REVIEW_COLUMNS: Sequence[str] = (*RUBRIC_COLUMNS, *HELPER_COLUMNS)
+# Allowed values for `support`, filled in by a person. Empty means not yet reviewed.
+# 2 supports at the stated scope, 1 partial or needs a qualifier, 0 unsupported or contradicted,
+# U couldn't inspect. U is counted on its own, never as 0.
+SUPPORT_VALUES = ("2", "1", "0", "U")
 
 MARKER_GROUP = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=\S)")
@@ -43,7 +46,7 @@ LIST_PREFIX = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 
 def candidate_claims(report: str) -> List[str]:
     """Split the report into sentence-sized candidates. Headings and any trailing
-    CitedPages/References block are skipped. This is a starting point for a reviewer, who merges,
+    Sources/References block are skipped. This is a starting point for a reviewer, who merges,
     splits, or deletes rows; it is not claim extraction."""
     out: List[str] = []
     for line in report.splitlines():
@@ -70,41 +73,44 @@ def markers_in(text: str) -> List[int]:
 
 
 def review_rows(report: str, sources: Sequence[CitedPage]) -> List[Dict[str, str]]:
+    """One row per candidate claim (a report sentence). The reviewer splits, merges, or deletes
+    rows until each is one material claim, then fills passage through reason."""
     by_position = {s.position: s for s in sources}
     rows: List[Dict[str, str]] = []
-
-    def add(claim_id: str, excerpt: str, marker: str, src: Optional[CitedPage], notes: str) -> None:
-        row = dict.fromkeys(REVIEW_COLUMNS, "")
-        row.update(
-            row_id=str(len(rows) + 1),
-            claim_id=claim_id,
-            report_excerpt=excerpt,
-            citation_marker=marker,
-            notes=notes,
-        )
-        if src is not None:
-            row.update(
-                source_position=str(src.position),
-                source_id=src.id or "",
-                source_url=(src.url or "") if src.link_ok else "",
-                source_title=src.title or "",
-                link_ok="yes" if src.link_ok else f"no ({src.link_issue})",
-                api_claims_for_source=" | ".join(src.claims),
-            )
-        rows.append(row)
-
     for i, sentence in enumerate(candidate_claims(report), start=1):
-        claim_id = f"C{i:02d}"
         markers = markers_in(sentence)
+        urls: List[str] = []
+        ids: List[str] = []
+        api_claims: List[str] = []
+        flags: List[str] = []
         if not markers:
-            add(claim_id, sentence, "", None, "no inline citation")
-            continue
+            flags.append("no inline citation")
         for n in markers:
             src = by_position.get(n)
-            note = "" if src else f"marker [{n}] has no cited page at position {n}"
-            if src is not None and src.duplicate_of_position:
-                note = f"likely same page as position {src.duplicate_of_position}"
-            add(claim_id, sentence, f"[{n}]", src, note)
+            if src is None:
+                flags.append(f"[{n}] has no cited page at position {n}")
+                continue
+            ids.append(src.id or f"(position {n}, no id)")
+            api_claims.extend(src.claims)
+            if not src.link_ok:
+                flags.append(f"[{n}] not linked ({src.link_issue})")
+            elif src.url and src.url not in urls:
+                urls.append(src.url)
+            if src.duplicate_of_position and src.duplicate_of_position in markers:
+                flags.append(f"[{n}] likely same page as [{src.duplicate_of_position}]")
+            elif src.duplicate_of_position:
+                flags.append(f"[{n}] likely same page as cited page {src.duplicate_of_position}")
+        row = dict.fromkeys(REVIEW_COLUMNS, "")
+        row.update(
+            claim_id=f"C{i:02d}",
+            answer_text=sentence,
+            citation_ids="".join(f"[{n}]" for n in markers),
+            source_url=" ; ".join(urls),
+            cited_page_ids=" ; ".join(ids),
+            auto_flags=" ; ".join(flags),
+            api_claims=" | ".join(api_claims),
+        )
+        rows.append(row)
     return rows
 
 
@@ -188,8 +194,9 @@ def trace_diagram_md(
         lines += [
             "## Cited pages (returned order)",
             "",
-            "Inline markers `[n]` in the report are joined to position `n` below. The API does not",
-            "state this join; it is an assumption the reviewer checks.",
+            "Inline markers `[n]` in the report are joined to position `n` below. The SDK",
+            "documents `cited_pages` as ordered by first citation appearance; the public guide",
+            "does not say. The reviewer confirms the join.",
             "",
             "| n | id | link | notes |",
             "|---|---|---|---|",
@@ -216,3 +223,23 @@ def trace_diagram_md(
 
 def _md_cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ").replace("[", "\\[").replace("]", "\\]")
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    """Rebuild review-sheet.csv from a run directory's report.md and sources.json. No network."""
+    p = argparse.ArgumentParser(
+        prog="cited-research-review",
+        description="Regenerate review-sheet.csv for an existing trace run. Makes no API call.",
+    )
+    p.add_argument("run_dir", type=Path)
+    args = p.parse_args(argv)
+    report = (args.run_dir / "report.md").read_text(encoding="utf-8")
+    pages = load_cited_pages(args.run_dir / "sources.json")
+    out = args.run_dir / "review-sheet.csv"
+    write_text_atomic(out, review_sheet_csv(report, pages))
+    print(f"review sheet -> {out} ({len(candidate_claims(report))} candidate claims, unreviewed)")
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

@@ -130,16 +130,32 @@ class CitedPage:
 def build_cited_pages(cited_pages: Optional[Sequence[Any]]) -> List[CitedPage]:
     """Cited pages in returned order, 1-based, with likely duplicates flagged (not removed)."""
     sources = [CitedPage.from_cited_page(p, i) for i, p in enumerate(cited_pages or [], start=1)]
-    first_seen: Dict[str, int] = {}
-    for s in sources:
-        if not s.link_ok or s.url is None:
-            continue
-        key = url_identity(s.url)
-        if key in first_seen:
-            s.duplicate_of_position = first_seen[key]
-        else:
-            first_seen[key] = s.position
+    flag_duplicates(sources)
     return sources
+
+
+def flag_duplicates(pages: Sequence[CitedPage]) -> None:
+    first_seen: Dict[str, int] = {}
+    for page in pages:
+        page.duplicate_of_position = None
+        if not page.link_ok or page.url is None:
+            continue
+        key = url_identity(page.url)
+        if key in first_seen:
+            page.duplicate_of_position = first_seen[key]
+        else:
+            first_seen[key] = page.position
+
+
+def load_cited_pages(path: Path) -> List[CitedPage]:
+    """Read a trace-path sources.json back, re-running the link and duplicate checks."""
+    pages: List[CitedPage] = []
+    for record in json.loads(path.read_text(encoding="utf-8")):
+        page = CitedPage(**record)
+        page.link_ok, page.link_issue = check_public_url(page.url)
+        pages.append(page)
+    flag_duplicates(pages)
+    return pages
 
 
 @dataclass

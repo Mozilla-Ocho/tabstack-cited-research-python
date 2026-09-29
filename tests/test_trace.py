@@ -8,6 +8,7 @@ import json
 import re
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, Iterator, List
 
 import httpx
@@ -284,8 +285,14 @@ def test_malformed_and_non_public_sources_are_flagged_not_dropped(
     assert m["rejected_link_count"] == 6 and m["cited_page_count"] == 9
 
     assert "user:pw" not in "".join(p.read_text() for p in tmp_path.iterdir() if p.is_file())
-    sheet_urls = {r["source_position"]: r["source_url"] for r in _sheet(tmp_path)}
-    assert sheet_urls["3"] == sheet_urls["4"] == "" and sheet_urls["9"] == "https://example.net/ok"
+    sheet = {r["citation_ids"]: r for r in _sheet(tmp_path)}
+    assert sheet["[2][3]"]["source_url"] == "http://example.org/a/"
+    assert sheet["[2][3]"]["auto_flags"] == (
+        "[2] likely same page as cited page 1 ; [3] not linked (scheme_not_http)"
+    )
+    assert sheet["[4][5]"]["source_url"] == ""
+    assert sheet["[9]"]["source_url"] == "https://example.net/ok"
+    assert sheet["[9]"]["api_claims"] == "machine claim"
 
     diagram = (tmp_path / "trace-diagram.md").read_text(encoding="utf-8")
     assert "javascript:" not in diagram and "(http://127.0.0.1" not in diagram
@@ -306,42 +313,89 @@ def test_complete_without_citations_is_review_needed(tmp_path: Path, fake_client
 # --- review sheet --------------------------------------------------------------------------
 
 
-def test_review_sheet_maps_markers_to_positions_and_leaves_judgments_blank(
+def test_review_sheet_uses_rubric_columns_and_leaves_review_fields_blank(
     tmp_path: Path, fake_client_factory
 ) -> None:
     _, factory = fake_client_factory("complete-ordered-sources.jsonl")
     _run(tmp_path, factory)
     header = (tmp_path / "review-sheet.csv").read_text(encoding="utf-8").splitlines()[0]
     assert header.split(",") == list(REVIEW_COLUMNS)
+    assert header.split(",")[:9] == [
+        "claim_id",
+        "answer_text",
+        "citation_ids",
+        "source_url",
+        "passage",
+        "source_date_or_version",
+        "retrieved_at_utc",
+        "support",
+        "reason",
+    ]
     rows = _sheet(tmp_path)
-    pairs = [(r["claim_id"], r["citation_marker"], r["source_id"]) for r in rows]
-    assert pairs == [
+    got = [(r["claim_id"], r["citation_ids"], r["cited_page_ids"]) for r in rows]
+    assert got == [
         ("C01", "[3]", "m3"),
         ("C02", "[1]", "z1"),
         ("C03", "", ""),
-        ("C04", "[2]", "a2"),
-        ("C04", "[3]", "m3"),
+        ("C04", "[2][3]", "a2 ; m3"),
     ]
-    assert rows[2]["notes"] == "no inline citation"
+    assert rows[3]["source_url"] == "https://alpha.example/two ; https://mid.example/three"
+    assert rows[2]["auto_flags"] == "no inline citation"
     for r in rows:
-        assert r["supporting_passage"] == r["judgment"] == r["reviewer"] == ""
+        for field in ("passage", "source_date_or_version", "retrieved_at_utc", "support", "reason"):
+            assert r[field] == "", field
     # The trailing Sources block and the heading are not claims.
-    assert not any("zeta.example" in r["report_excerpt"] for r in rows)
+    assert not any("zeta.example" in r["answer_text"] for r in rows)
 
 
-def test_review_sheet_flags_markers_without_a_cited_page(
-    tmp_path: Path, fake_client_factory
-) -> None:
-    _, factory = fake_client_factory("complete-no-cited-pages.jsonl")
-    _run(tmp_path, factory)
-    assert _sheet(tmp_path) == []  # the fixture report is only a heading
+def test_review_sheet_flags_markers_without_a_cited_page() -> None:
+    from cited_research.models import build_cited_pages
+    from cited_research.review import review_rows
+
+    page = SimpleNamespace(id="p1", url="https://example.org/1", claims=[], source_queries=[])
+    rows = review_rows("Real [1]. Phantom [2].", build_cited_pages([page]))
+    assert rows[1]["auto_flags"] == "[2] has no cited page at position 2"
+    assert rows[1]["source_url"] == "" and rows[1]["cited_page_ids"] == ""
+
+
+def test_understand_post_example_flags_one_page_cited_twice() -> None:
+    """The Week 1 sentence the Understand post reviews: [1] and [2] are one docs page."""
+    from cited_research.models import build_cited_pages
+    from cited_research.review import review_rows
+
+    urls = [
+        "https://docs.ollama.com/capabilities/web-search.md",
+        "http://docs.ollama.com/capabilities/web-search",
+        "https://ollama.com/blog/web-search",
+    ]
+    raw = [
+        SimpleNamespace(id=f"p{i}", url=u, claims=[], source_queries=[]) for i, u in enumerate(urls)
+    ]
+    pages = build_cited_pages(raw)
+    rows = review_rows("The Ollama Web Search API requires an API key [1][2][3].", pages)
+    assert rows[0]["citation_ids"] == "[1][2][3]"
+    assert rows[0]["auto_flags"] == "[2] likely same page as [1]"
 
 
 def test_review_sheet_neutralises_spreadsheet_formulas() -> None:
     from cited_research.review import review_sheet_csv
 
     rows = list(csv.DictReader(io.StringIO(review_sheet_csv("=HYPERLINK(1) [1].\n", []))))
-    assert rows[0]["report_excerpt"].startswith("'=")
+    assert rows[0]["answer_text"].startswith("'=")
+
+
+def test_review_command_rebuilds_sheet_without_network(
+    tmp_path: Path, fake_client_factory, capsys
+) -> None:
+    from cited_research.review import main as review_main
+
+    _, factory = fake_client_factory("complete-ordered-sources.jsonl")
+    _run(tmp_path, factory)
+    original = (tmp_path / "review-sheet.csv").read_text(encoding="utf-8")
+    (tmp_path / "review-sheet.csv").unlink()
+    assert review_main([str(tmp_path)]) == 0
+    assert (tmp_path / "review-sheet.csv").read_text(encoding="utf-8") == original
+    assert "4 candidate claims, unreviewed" in capsys.readouterr().out
 
 
 def test_candidate_claims_and_markers() -> None:

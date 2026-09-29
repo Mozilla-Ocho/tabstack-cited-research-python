@@ -19,4 +19,5 @@ plus `stdout.txt`, `stderr.txt`, and `exit-code.txt` captured from the shell.
 
 Written by commit `82b9be9`. Two things changed afterwards: the event-log field `timestamp` is
 now `timestamp_raw`, and SDK retries are now off (this manifest shows `sdk_max_retries: 2`).
-The files are left as the run produced them.
+The files are left as the run produced them, except `review-sheet.csv`, which was rebuilt
+offline in the rubric format with `uv run cited-research-review artifacts/week-3-trace`.
