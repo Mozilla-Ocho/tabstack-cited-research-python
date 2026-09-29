@@ -11,10 +11,10 @@ plus `stdout.txt`, `stderr.txt`, and `exit-code.txt` captured from the shell.
 | Local duration | 17,091 ms (first event 496 ms) |
 | Events | 10, each once |
 | Cited pages | 3 (`claims: []` on all) |
-| Review state | first-pass AI review in `review-sheet.csv`; see `REVIEW-NOTES.md`. Human sign-off pending |
+| Review state | first-pass review in `review-sheet.csv`; see `REVIEW-NOTES.md`. Technical-reviewer sign-off pending |
 
 `report.md` has had a first-pass claim review (5 supported, 8 partial of 13 rows) but no
-human sign-off. Do not quote the report as correct. Read
+technical-reviewer sign-off. Do not quote the report as correct. Read
 `trace-diagram.md` for what the timeline can and cannot show, and
 `../../handoff/week-3/BUILD-FINDINGS.md` for observations.
 

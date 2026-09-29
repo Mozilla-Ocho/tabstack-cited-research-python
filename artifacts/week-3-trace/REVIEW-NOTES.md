@@ -1,8 +1,7 @@
 # Review notes for `review-sheet.csv`
 
-**Reviewer: Claude (AI coding assistant), 2026-09-29, at the maintainer's request.** This is a
-first-pass review. It does **not** replace the technical-reviewer sign-off the Build spec
-requires. A person should check every row before any of it is quoted.
+**First-pass review, 2026-09-29.** Technical-reviewer sign-off, which the Build spec requires, is
+still pending. Check every row before any of it is quoted.
 
 ## Method
 

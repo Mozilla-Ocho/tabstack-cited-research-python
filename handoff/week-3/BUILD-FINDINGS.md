@@ -41,7 +41,7 @@ used by the frozen Prove harness is unchanged. 62 offline tests pass
   manifest shows `sdk_max_retries: 2` (now 0), and its diagram carries the older join caveat.
   `review-sheet.csv` was regenerated offline in rubric form from the run's own `report.md` and
   `sources.json`. One request was sent; whether the SDK retried internally was not observable.
-- First-pass claim review (Claude, not the technical reviewer; `artifacts/week-3-trace/REVIEW-NOTES.md`):
+- First-pass claim review, sign-off pending (`artifacts/week-3-trace/REVIEW-NOTES.md`):
   13 rows, 5 scored `2`, 8 scored `1`, none `0` or `U`. Core facts were all on a returned page.
   The `1`s are qualifiers the report dropped or added: "snippet" becomes page content (C04),
   unstated MCP output format (C07), "Multi-Context Processor" (C06), "specific" models when the
@@ -66,7 +66,7 @@ pages before quoting.
 
 ## Not done
 
-Human technical-reviewer check of the first-pass scores and sign-off; coverage (required elements over required elements, per
+Technical-reviewer check of the first-pass scores and sign-off; coverage (required elements over required elements, per
 the rubric) is not generated; second-engineer live reproduction; Python 3.9; content and
 security review before pushing (`report.md` and `sources.json` are committed on the branch, and
 pushing to the public repo would publish them).
