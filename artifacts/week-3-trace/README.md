@@ -16,3 +16,7 @@ plus `stdout.txt`, `stderr.txt`, and `exit-code.txt` captured from the shell.
 `report.md` and `sources.json` are unreviewed. Do not quote the report as correct. Read
 `trace-diagram.md` for what the timeline can and cannot show, and
 `../../handoff/week-3/BUILD-FINDINGS.md` for observations.
+
+Written by commit `82b9be9`. Two things changed afterwards: the event-log field `timestamp` is
+now `timestamp_raw`, and SDK retries are now off (this manifest shows `sdk_max_retries: 2`).
+The files are left as the run produced them.

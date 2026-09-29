@@ -1,94 +1,61 @@
 # Week 3 Build findings: trace a question from request to source-backed answer
 
-What we saw is kept separate from what we designed. One live run. Nothing here measures typical
-latency, cost, accuracy, or reliability.
+One live run. Nothing here measures typical latency, cost, accuracy, or reliability.
 
-## Identity and prior status
+## Identity and status
 
-- Repository: https://github.com/Mozilla-Ocho/tabstack-cited-research-python, branch
-  `week-3-trace` (local; not pushed at time of writing), branched from `main` at `6325338`.
-- Implementation commit used for the live run: `82b9be98d4add677d1fe650b1a0701d4d198189a`
-  (recorded in `artifacts/week-3-trace/run-manifest.json`). A later commit on the branch changes
-  only file modes for atomic writes, plus docs and artifacts.
-- Week 1: built and verified in this repo (implementation `759f10a`, sample run 2026-09-15).
-  The Week 1 handoff files (`week-1-build-prove/*.md`) were not on this machine; this repo and its
-  `handoff/BUILD-FINDINGS.md` were the source of truth.
-- Week 2: **not built.** No `ApplicationResponse` or `research` route exists anywhere under the
-  Tabstack workspace. This trace runs on the Week 1 CLI, not a Week 2 application layer.
-- Week 3 Understand rubric (`01-UNDERSTAND-what-makes-a-citation-useful-draft.md`): not on this
-  machine. The review-sheet columns are **provisional**.
+- Repo https://github.com/Mozilla-Ocho/tabstack-cited-research-python, branch `week-3-trace` off
+  `main@6325338`, **not pushed**. Live run at `82b9be9`. `tabstack==2.8.5` (lockfile unchanged),
+  Python 3.12.13, uv 0.11.28, macOS 25.5.0 arm64.
+- Week 1: built here. Week 2: **not built** (no `ApplicationResponse` anywhere), so the trace
+  runs on the Week 1 CLI. Week 1 handoff files and the Understand rubric are not on this machine;
+  the review-sheet columns are **provisional**.
 
-## Environment (live run)
+## Design
 
-- 2026-09-29, started 18:23:24.612Z UTC, macOS Darwin 25.5.0 arm64
-- Python 3.12.13 via uv 0.11.28, `tabstack==2.8.5` from `uv.lock` (unchanged from Week 1)
-- Command: `artifacts/week-3-trace/command.txt`. Key from `TABSTACK_API_KEY` in the environment.
+Single request and event loop; SDK retries off (`max_retries=0`) and no application retries.
+Exits: 2 streamed error, 3 HTTP, 4 transport, 6 closed before terminal, 7 silence timeout,
+8 second terminal event. Timeline: `seq`, local monotonic `elapsed_ms`, `timestamp_raw` and
+`timestamp_type`, allowlisted counters, redacted messages; written atomically. Cited pages in
+returned order with link checks, duplicate flags, stripped credentials; `[]` becomes
+`review_needed_no_sources`. Blank-judgment review sheet and a per-run diagram. The Week 1 path
+used by the frozen Prove harness is unchanged. 59 offline tests pass
+(`handoff/week-3/TEST-OUTPUT.txt`), also from a fresh `uv sync --frozen` clone with no key.
 
-## Design (what was built)
+## Observed: live run, 2026-09-29 18:23:24Z
 
-| Spec item | Where |
-|---|---|
-| Single request, single event loop, no application retry | `tabstack_runner.run_research`, `EventPump` |
-| Timeline: event, `seq`, local monotonic `elapsed_ms`, allowlisted fields, redacted message | `sanitize.sanitize_event` |
-| Raw server timestamp and its observed type | `timestamp`, `timestamp_type`; manifest `timestamp_types` |
-| Atomic JSONL and artifact writes on every exit path | `sanitize.write_jsonl_atomic`, `write_text_atomic` |
-| Separate exit states: task error 2, HTTP 3, transport 4, premature close 6, silence 7, protocol 8 | `EXIT_CODES` |
-| Duplicate terminal event rejected | `consume_trace` raises `ProtocolError` |
-| Cited pages in returned order, public-link check, duplicates flagged, credentials stripped | `models.build_cited_pages`, `urls.py` |
-| `sources=[]` and `review_needed_no_sources` when citations are absent | `persist_trace` |
-| Review worksheet with blank judgments | `review.review_sheet_csv` |
-| Per-run annotated diagram | `review.trace_diagram_md` |
+- `complete`, exit 0, 17,091 ms; first event 496 ms; the Week 1 sequence of 10 events, each
+  once; the stream closed by itself after `complete`. Gaps by arrival: planning ~1.1 s,
+  searching ~5.3 s, writing ~10.2 s (client-side, not server stage timings). Events arrive in
+  bursts that share a timestamp; order comes from `seq`.
+- `timestamp`: a float in epoch ms on every event. 3 cited pages, `claims: []` on all (15 of 15
+  pages across the three fast-mode runs so far). All pages share the same six `source_queries`.
+  Positions 1 and 2 are the same doc with and without `.md`.
+- 5 of 10 report sentences have no inline marker, including the endpoint, the API-key
+  requirement, and `max_results` limits. Noticed during inspection (not a review): "MCP
+  (Multi-Context Processor)", uncited.
+- This run predates two changes: its log field is `timestamp` (now `timestamp_raw`), and its
+  manifest shows `sdk_max_retries: 2` (now 0). One request was sent; whether the SDK retried
+  internally was not observable.
+- Grep-based secrets scan clean (no gitleaks). Cost not measured.
 
-Kept unchanged for the frozen Prove harness (System B): `consume_stream`, `persist_complete`,
-`Source`, `append_jsonl`. The harness's event logs now also get `known_event` and
-`timestamp_type`, and messages are redacted; the request it sends is unchanged.
+## Docs correspondence (guide and API reference, read 2026-09-29)
 
-Offline tests: 57 passed (`handoff/week-3/TEST-OUTPUT.txt`), covering complete with and without
-citations, streamed error, premature close, silence before and between events, stream left open
-after complete, duplicate terminal events, malformed cited pages, sensitive-message redaction,
-URL validation, source ordering, identical server timestamps, HTTP and transport opening
-failures, and a scan for secret-shaped strings in all artifacts. The same 57 passed from a fresh
-clone with `uv sync --frozen` and no API key.
+| Topic | Guide | API reference | Observed / SDK |
+|---|---|---|---|
+| `timestamp` | ISO-8601 string | number (ms) | float ms; SDK `float`. **Guide wrong** |
+| `claims` | "specific statements drawn from that page" | strings extracted from page | `[]` in fast mode, 3 of 3 |
+| `reliability` | string | low/medium/high | absent in fast mode |
+| Event names | lifecycle plus balanced-only list | 22 names plus `error` | matches the SDK union; fast sent 10 |
+| `done` event | none | none | none |
+| Total timeout | none server-side; watch silence | not stated | SDK sets 600 s client-side |
+| `iteration:end` | `isLast`, `stopReason` | in SDK types | now allowlisted |
 
-## Observed (one live run)
+The pages were read through a fetch-and-summarize tool; recheck the wording against the live
+pages before quoting.
 
-- `complete`, exit 0, 17,091 ms local. First event at 496 ms. 10 events, each once, in the same
-  order as the Week 1 run: `start, planning:start, planning:end, iteration:start,
-  searching:start, searching:end, iteration:end, writing:start, writing:end, complete`.
-- The stream closed by itself after `complete` (`stream_closed_after_terminal: true`).
-- Where the time went, by local arrival: planning about 1.1 s, searching about 5.3 s, writing
-  about 10.2 s. These are gaps between events as the client saw them, not server stage timings.
-- Several events arrive together (same `elapsed_ms`, same server `timestamp`): `start` and
-  `planning:start`; `planning:end`, `iteration:start` and `searching:start`; `searching:end`,
-  `iteration:end` and `writing:start`. Order comes from `seq`, not from timestamps.
-- `timestamp` is a float (epoch milliseconds) on every event. This matches the SDK type
-  (`timestamp: float`) and Week 1 finding #4, not the ISO string in the docs guide.
-- `urls_found = urls_new = 6`, `pages_analyzed = 3`, 3 cited pages. Report 1,621 characters,
-  one paragraph, inline `[n]` markers only, no Sources section.
-- `claims` was `[]` on all 3 cited pages. That makes 15 of 15 cited pages across three fast-mode
-  runs. The API's `claims` field cannot supply the claim-to-source mapping in fast mode.
-- Positions 1 and 2 are `docs.ollama.com/capabilities/web-search` and the same path with `.md`.
-  `duplicate_of_position` does not flag this, by design (a `.md` path can be a different
-  resource); a reviewer should treat them as probably the same page.
-- Every cited page had the same six `source_queries`, so that field does not tell you which
-  query surfaced which page.
-- Review sheet: 10 candidate sentences, 5 with no inline marker (C01, C02, C03, C06, C08). The
-  uncited ones include specific factual statements (the endpoint URL, the API-key requirement,
-  `max_results` default 5 and cap 10, the MCP server filename and clients, the named cloud
-  models).
-- Noticed while inspecting the artifact, **not** a formal review: the report expands MCP as
-  "Multi-Context Processor". Model Context Protocol is the usual expansion, and that sentence has
-  no citation. This is the kind of thing the worksheet exists to catch.
-- Secrets scan: the API key value is absent from the artifacts, source, tests, and handoff. There
-  are no bearer, authorization, cookie, `sk_` key, or traceback patterns in
-  `artifacts/week-3-trace/`. This is a grep-based scan; there is no gitleaks binary on this
-  machine.
-- Cost: not measured. No usage in the response, and telemetry was not queried for this run.
+## Not done
 
-## Not done / blockers
-
-- Review sheet judgments: **not filled.** Every judgment is blank. Needs a technical reviewer.
-- Rubric: column names are not reconciled with the Understand draft.
-- Second-engineer reproduction of the live sample: not done; no second live call was authorized.
-- Tested on Python 3.12 only; the declared floor is 3.9.
-- Content and security review of `report.md` and `sources.json` before publication: pending.
+Reviewer judgments and sign-off; rubric reconciliation; second-engineer live reproduction; Python
+3.9; content and security review before pushing (`report.md` and `sources.json` are committed on
+the branch, and pushing to the public repo would publish them).

@@ -43,6 +43,8 @@ TERMINAL_EVENTS = frozenset({"complete", "error"})
 
 # Scalar, non-sensitive metadata that may be kept per event. Anything not listed is dropped.
 # `timestamp` is handled separately: kept raw, with its observed Python type alongside.
+# The docs disagree on its type (guide: ISO string; API reference and SDK: number), so it is
+# recorded as received and never reformatted.
 ALLOWED_DATA_KEYS = frozenset(
     {
         "message",
@@ -56,6 +58,8 @@ ALLOWED_DATA_KEYS = frozenset(
         "urls_new",
         "complexity",
         "activity",
+        "is_last",
+        "stop_reason",
     }
 )
 
@@ -116,11 +120,14 @@ def sanitize_event(
     received_at_utc: Optional[str] = None,
     seq: Optional[int] = None,
     elapsed_ms: Optional[int] = None,
+    timestamp_key: str = "timestamp",
 ) -> Dict[str, Any]:
     """Return an allowlisted, JSON-serialisable record for one event.
 
     `seq` is the 1-based arrival order and `elapsed_ms` is measured on the local monotonic clock
     from just before the request was sent. Both are local observations, not server data.
+    The trace path passes `timestamp_key="timestamp_raw"`; the Week 1 and harness logs keep
+    `timestamp`.
     """
     name = safe_event_name(event_name)
     record: Dict[str, Any] = {
@@ -145,7 +152,7 @@ def sanitize_event(
         ts = raw["timestamp"]
         record["timestamp_type"] = type(ts).__name__
         if isinstance(ts, (int, float, str)) and not isinstance(ts, bool):
-            record["timestamp"] = redact_message(ts) if isinstance(ts, str) else ts
+            record[timestamp_key] = redact_message(ts) if isinstance(ts, str) else ts
 
     for key, value in raw.items():
         if key not in ALLOWED_DATA_KEYS or DENIED_KEY_PATTERN.search(key):

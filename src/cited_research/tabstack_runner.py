@@ -258,7 +258,12 @@ def consume_trace(
         manifest.event_counts[name] = manifest.event_counts.get(name, 0) + 1
         manifest.event_sequence.append(name)
         record = sanitize_event(
-            name, getattr(event, "data", None), utc_now_iso(), len(records) + 1, elapsed_ms
+            name,
+            getattr(event, "data", None),
+            utc_now_iso(),
+            len(records) + 1,
+            elapsed_ms,
+            timestamp_key="timestamp_raw",
         )
         records.append(record)
         ts_type = record.get("timestamp_type")
@@ -318,6 +323,16 @@ def persist_trace(
     return report, pages
 
 
+def no_retry_client() -> Tabstack:
+    """SDK client with transport retries off.
+
+    The SDK's default (2) re-sends the POST on connection errors, 408, 409, 429 and 5xx. A request
+    that failed at the connection level may already have been accepted and billed, so the trace
+    path fails fast and lets the caller decide.
+    """
+    return Tabstack(max_retries=0)
+
+
 STANDING_CAVEATS = (
     "Timeline is a request lifecycle, not a source-level execution trace.",
     "complete is evidence the task terminated, not that citations are correct.",
@@ -334,7 +349,7 @@ def run_research(
     output_dir: Path,
     quiet: bool = False,
     stdout: TextIO = sys.stdout,
-    client_factory: Callable[[], Tabstack] = Tabstack,
+    client_factory: Callable[[], Tabstack] = no_retry_client,
     silence_timeout: Optional[float] = None,
     command: Optional[str] = None,
     post_terminal_grace: float = POST_TERMINAL_GRACE_SECONDS,

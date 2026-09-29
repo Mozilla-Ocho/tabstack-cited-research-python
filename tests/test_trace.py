@@ -52,9 +52,10 @@ def test_timeline_has_order_elapsed_and_raw_timestamp_type(
     elapsed = [r["elapsed_ms"] for r in log]
     assert elapsed == sorted(elapsed) and all(isinstance(e, int) and e >= 0 for e in elapsed)
     # Every server timestamp in this fixture is identical; order comes from seq, not timestamp.
-    assert len({r["timestamp"] for r in log}) == 1
+    assert len({r["timestamp_raw"] for r in log}) == 1
     for r in log:
-        assert r["timestamp_type"] == type(r["timestamp"]).__name__
+        assert "timestamp" not in r
+        assert r["timestamp_type"] == type(r["timestamp_raw"]).__name__
         assert r["known_event"] is True
     assert _manifest(tmp_path)["timestamp_types"] == [log[0]["timestamp_type"]]
 
@@ -148,6 +149,36 @@ def test_request_open_failures(tmp_path: Path, exc: BaseException, code: int, st
     m = _manifest(tmp_path)
     assert m["terminal_status"] == status and m["event_sequence"] == []
     assert (tmp_path / "events.sanitized.jsonl").read_text() == ""
+
+
+def test_default_client_disables_sdk_retries(tmp_path: Path, monkeypatch) -> None:
+    import cited_research.tabstack_runner as runner
+
+    made: List[Dict[str, Any]] = []
+    events = load_events("complete-events.jsonl")
+
+    class RecordingClient(FakeClient):
+        def __init__(self, **kwargs: Any):
+            super().__init__(events)
+            made.append(kwargs)
+            self.max_retries = kwargs.get("max_retries", 2)
+
+    monkeypatch.setattr(runner, "Tabstack", RecordingClient)
+    assert run_research("q", "fast", True, None, tmp_path, quiet=True, post_terminal_grace=0.2) == 0
+    assert made == [{"max_retries": 0}]
+    m = _manifest(tmp_path)
+    assert m["sdk_max_retries"] == 0 and m["application_retries"] == 0
+
+
+def test_iteration_end_keeps_is_last_and_stop_reason() -> None:
+    from cited_research.sanitize import sanitize_event
+
+    rec = sanitize_event(
+        "iteration:end",
+        {"iteration": 1, "is_last": True, "stop_reason": "max_iterations", "queries": ["q"]},
+    )
+    assert rec["is_last"] is True and rec["stop_reason"] == "max_iterations"
+    assert "queries" not in rec
 
 
 def test_silence_timeout_exits_7_without_retry(tmp_path: Path, capsys) -> None:

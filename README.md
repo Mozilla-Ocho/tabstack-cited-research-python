@@ -120,9 +120,15 @@ to make production fail.
 - The SDK applies a 600 s per-request timeout to `/research` streams. This CLI adds no shorter
   total timeout, so a healthy long run is not killed early. `--silence-timeout` is optional and
   measures the gap between events (including the wait for the first one), not total duration.
-- The SDK retries transport-level failures (408, 409, 429, 5xx) twice by default. This CLI adds
-  **no** application-level retries; a retry could re-run and re-bill the research. The manifest
-  records both (`sdk_max_retries`, `application_retries`).
+- The SDK retries transport-level failures (connection errors, 408, 409, 429, 5xx) twice by
+  default. The CLI turns that off (`Tabstack(max_retries=0)`): a request that failed at the
+  connection level may already have been accepted, and re-sending it could re-run and re-bill the
+  research. A 429 or 5xx therefore exits 3 at once, and a connection failure exits 4. There are
+  no application-level retries either. The manifest records both (`sdk_max_retries: 0`,
+  `application_retries: 0`). Changed in schema 2; Week 1 runs and the evaluation harness used
+  the SDK default of 2.
+- The docs guide says there is no server-side limit on total duration and recommends watching
+  for stream silence. That is what `--silence-timeout` does.
 - The client is a context manager; the HTTP response is closed when the loop exits, including on
   error.
 
@@ -137,7 +143,9 @@ Dropped on purpose: `full_text`, `summary`, `depth`, `parent_url`, `url_source`.
 with no `cited_pages` gives `sources.json` = `[]` and `review_state = review_needed_no_sources`.
 
 The event log keeps event names, arrival order (`seq`), local monotonic `elapsed_ms`, the raw
-server `timestamp` with its observed type (`timestamp_type`), allowlisted counters, and status
+server timestamp as `timestamp_raw` with its observed type (`timestamp_type`; the guide says ISO
+string, the API reference and SDK say number, and the wire sent a float in epoch milliseconds),
+allowlisted counters, and status
 messages with URLs, emails, and credential-shaped strings redacted. It never duplicates the
 report or page text, and a denylist strips anything that looks like a key, header, cookie, stack
 trace, or environment dump.
