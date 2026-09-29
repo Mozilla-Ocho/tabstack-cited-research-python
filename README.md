@@ -180,8 +180,12 @@ page so far.
 To rebuild the sheet for an existing run without another API call:
 
 ```bash
-uv run cited-research-review artifacts/week-3-trace
+uv run cited-research-review artifacts/my-run
 ```
+
+It refuses to overwrite a sheet that already has entries in any reviewer column; `--force`
+overrides that. The committed `artifacts/week-3-trace/review-sheet.csv` has a first-pass review,
+described in `artifacts/week-3-trace/REVIEW-NOTES.md`.
 
 ## Evaluation harness
 

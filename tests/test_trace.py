@@ -398,6 +398,29 @@ def test_review_command_rebuilds_sheet_without_network(
     assert "4 candidate claims, unreviewed" in capsys.readouterr().out
 
 
+def test_review_command_refuses_to_overwrite_a_reviewed_sheet(
+    tmp_path: Path, fake_client_factory, capsys
+) -> None:
+    from cited_research.review import main as review_main
+
+    _, factory = fake_client_factory("complete-ordered-sources.jsonl")
+    _run(tmp_path, factory)
+    sheet = tmp_path / "review-sheet.csv"
+    rows = _sheet(tmp_path)
+    rows[0]["support"] = "2"
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=list(rows[0]), lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    sheet.write_text(buf.getvalue(), encoding="utf-8")
+
+    assert review_main([str(tmp_path)]) == 1
+    assert "already has review entries" in capsys.readouterr().err
+    assert _sheet(tmp_path)[0]["support"] == "2"
+    assert review_main([str(tmp_path), "--force"]) == 0
+    assert _sheet(tmp_path)[0]["support"] == ""
+
+
 def test_candidate_claims_and_markers() -> None:
     report = "# H\n\nOne [1][2]. Two [3, 1]! Three?\n\n**Sources**\n[1] x\n"
     assert candidate_claims(report) == ["One [1][2].", "Two [3, 1]!", "Three?"]

@@ -21,7 +21,7 @@ Exits: 2 streamed error, 3 HTTP, 4 transport, 6 closed before terminal, 7 silenc
 returned order with link checks, duplicate flags (scheme, slash, `.md` variants), stripped
 credentials; `[]` becomes `review_needed_no_sources`. Rubric-shaped review sheet with `support`
 always blank; `cited-research-review DIR` rebuilds it offline. Per-run diagram. The Week 1 path
-used by the frozen Prove harness is unchanged. 61 offline tests pass
+used by the frozen Prove harness is unchanged. 62 offline tests pass
 (`handoff/week-3/TEST-OUTPUT.txt`), also from a fresh `uv sync --frozen` clone with no key.
 
 ## Observed: live run, 2026-09-29 18:23:24Z
@@ -41,6 +41,11 @@ used by the frozen Prove harness is unchanged. 61 offline tests pass
   manifest shows `sdk_max_retries: 2` (now 0), and its diagram carries the older join caveat.
   `review-sheet.csv` was regenerated offline in rubric form from the run's own `report.md` and
   `sources.json`. One request was sent; whether the SDK retried internally was not observable.
+- First-pass claim review (Claude, not the technical reviewer; `artifacts/week-3-trace/REVIEW-NOTES.md`):
+  13 rows, 5 scored `2`, 8 scored `1`, none `0` or `U`. Core facts were all on a returned page.
+  The `1`s are qualifiers the report dropped or added: "snippet" becomes page content (C04),
+  unstated MCP output format (C07), "Multi-Context Processor" (C06), "specific" models when the
+  post says any cloud model (C08). The output half of the question is the weakly supported part.
 - Grep-based secrets scan clean (no gitleaks). Cost not measured.
 
 ## Docs correspondence (guide and API reference, read 2026-09-29)
@@ -61,7 +66,7 @@ pages before quoting.
 
 ## Not done
 
-Reviewer `support` scores and sign-off; coverage (required elements over required elements, per
+Human technical-reviewer check of the first-pass scores and sign-off; coverage (required elements over required elements, per
 the rubric) is not generated; second-engineer live reproduction; Python 3.9; content and
 security review before pushing (`report.md` and `sources.json` are committed on the branch, and
 pushing to the public repo would publish them).

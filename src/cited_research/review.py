@@ -10,6 +10,7 @@ import argparse
 import csv
 import io
 import re
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -225,6 +226,23 @@ def _md_cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ").replace("[", "\\[").replace("]", "\\]")
 
 
+REVIEWER_COLUMNS: Sequence[str] = (
+    "passage",
+    "source_date_or_version",
+    "retrieved_at_utc",
+    "support",
+    "reason",
+)
+
+
+def has_review_entries(sheet_csv: str) -> bool:
+    return any(
+        (row.get(c) or "").strip()
+        for row in csv.DictReader(io.StringIO(sheet_csv))
+        for c in REVIEWER_COLUMNS
+    )
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """Rebuild review-sheet.csv from a run directory's report.md and sources.json. No network."""
     p = argparse.ArgumentParser(
@@ -232,10 +250,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         description="Regenerate review-sheet.csv for an existing trace run. Makes no API call.",
     )
     p.add_argument("run_dir", type=Path)
+    p.add_argument(
+        "--force", action="store_true", help="Overwrite a sheet that already has review entries."
+    )
     args = p.parse_args(argv)
     report = (args.run_dir / "report.md").read_text(encoding="utf-8")
     pages = load_cited_pages(args.run_dir / "sources.json")
     out = args.run_dir / "review-sheet.csv"
+    if out.exists() and not args.force and has_review_entries(out.read_text(encoding="utf-8")):
+        sys.stderr.write(f"{out} already has review entries; not overwriting (use --force).\n")
+        return 1
     write_text_atomic(out, review_sheet_csv(report, pages))
     print(f"review sheet -> {out} ({len(candidate_claims(report))} candidate claims, unreviewed)")
     return 0
