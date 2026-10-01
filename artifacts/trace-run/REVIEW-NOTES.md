@@ -1,11 +1,11 @@
 # Review notes for `review-sheet.csv`
 
-**First-pass review, 2026-09-29.** Technical-reviewer sign-off, which the Build spec requires, is
+**First-pass review, 2026-09-29.** Technical-reviewer sign-off, which the trace spec requires, is
 still pending. Check every row before any of it is quoted.
 
 ## Method
 
-- Rubric: Week 3 Understand draft, "What makes a citation useful", section "A rubric you can
+- Rubric: "What makes a citation useful in an AI-generated answer?", section "A rubric you can
   reuse". Support: `2` supported at the stated scope, `1` partial or needs a qualifier, `0`
   unsupported or contradicted, `U` couldn't inspect.
 - Pages were fetched with `curl` at 2026-09-29T18:50:05Z. Every row's `retrieved_at_utc` records
@@ -26,7 +26,7 @@ still pending. Check every row before any of it is quoted.
 ## Changes to the generated rows
 
 - C03 split into C03a, C03b, C03c: three decision-driving facts in one sentence.
-- C04x added: the citation set `[1][2]` is one page. This follows the Understand post's own
+- C04x added: the citation set `[1][2]` is one page. This follows that article's own
   worked example, which logs the overstatement as its own `1`.
 
 ## Tallies

@@ -1,11 +1,11 @@
-# Editorial notes for the Week 3 Build article
+# Editorial notes for the trace article
 
 These are decisions and checks outside the code. Each one lists what was found; the decision
 belongs to editorial.
 
 ## 1. CTA
 
-- Build spec: **Run the traced example.**
+- Spec CTA: **Run the traced example.**
 - Messaging package CTA table, Research intent: **Make a research call** (links to console signup).
 
 The article is a tutorial built around this repo, so the spec's CTA fits the reader's next step.
@@ -36,13 +36,13 @@ The messaging package says copy that conflicts with product behavior does not sh
 behavior is confirmed. For the page owner:
 
 - The `applications` list includes "A draft-review step that validates claims before display."
-  In context this lists it as a job Tabstack Research does. The Week 3 Understand post says "A
+  In context this lists it as a job Tabstack Research does. The citations article says "A
   completed request doesn't make the answer verified", and the Build runs support that. In fast
   mode `claims` was empty on all 15 cited pages across three runs. In the reviewed run, 5 of 10
   sentences had no inline citation, and the reviewed claims mostly scored `1` (partial) because of
   dropped or added qualifiers.
 - The frame "returns a cited answer" holds at the report level: every run had citations. It does
-  not hold at the sentence level: 5 of 10 and 1 of 7 sentences were uncited in the two Week 3
+  not hold at the sentence level: 5 of 10 and 1 of 7 sentences were uncited in the two trace
   runs.
 
 Two runs of one question prove little, and this is not a finding that the copy is false.

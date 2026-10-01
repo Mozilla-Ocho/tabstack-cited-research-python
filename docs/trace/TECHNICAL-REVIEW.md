@@ -1,4 +1,4 @@
-# Technical review checklist (Build spec acceptance criterion 9)
+# Technical review checklist
 
 The spec asks a technical reviewer to check the report/source mapping, docs correspondence, safe
 sharing, and the article diagram. Each check below has been run and its result recorded. The
@@ -10,7 +10,7 @@ sign-off at the bottom is still blank.
 |---|---|
 | `[n]` joins to `cited_pages[n-1]` | Consistent with the API reference and SDK ("ordered by first citation appearance"). In both live runs, markers first appear in ascending order. |
 | Every marker resolves to a cited page | Yes in both runs. There are no out-of-range markers. |
-| Claim-level review of the worked example | `artifacts/week-3-trace/review-sheet.csv`: 13 rows, 5 scored `2`, 8 scored `1`. Passages are verbatim and checked by script. Method and page hashes are in `artifacts/week-3-trace/REVIEW-NOTES.md`. |
+| Claim-level review of the worked example | `artifacts/trace-run/review-sheet.csv`: 13 rows, 5 scored `2`, 8 scored `1`. Passages are verbatim and checked by script. Method and page hashes are in `artifacts/trace-run/REVIEW-NOTES.md`. |
 | Duplicate sources flagged | The `.md` variant is flagged in both runs: C04 in the first, C06 in the reproduction. |
 | Reproduction run reviewed | No. It is intentionally left as generated. |
 
@@ -28,8 +28,8 @@ event, cited-page order); both were corrected from the raw text.
 |---|---|
 | API key value | Absent from the working tree and from every commit on every branch (`git log --all -p`). |
 | detect-secrets (Yelp) over all tracked and new files | 18 hits, all false positives: query SHA-256s, git and config hashes, and deliberately fake keys and a `user:pw` URL in test fixtures. |
-| Headers, cookies, bearer tokens, stack traces in Week 3 artifacts | None. |
-| Local paths, usernames, emails in Week 3 artifacts | None. |
+| Headers, cookies, bearer tokens, stack traces in trace artifacts | None. |
+| Local paths, usernames, emails in trace artifacts | None. |
 | URLs rendered as links | All public http(s); `rejected_link_count` is 0 in both runs. |
 | Third-party text | Only short passages in the review sheet. Page text is not stored (hashes only). |
 | Data-flow statement | The README now matches the Privacy Notice of 2026-09-16: third-party models, 90-day history. |

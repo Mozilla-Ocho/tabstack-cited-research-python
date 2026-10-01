@@ -3,4 +3,4 @@ cited-research \
   --mode fast \
   --nocache \
   --silence-timeout 120 \
-  --output artifacts/week-3-repro
+  --output artifacts/trace-repro

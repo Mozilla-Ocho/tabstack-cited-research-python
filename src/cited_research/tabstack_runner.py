@@ -106,8 +106,9 @@ def write_sources(path: Path, sources: Iterable[Source]) -> None:
     )
 
 
-# consume_stream / persist_complete / write_sources are the Week 1 path. The evaluation harness
-# (System B, frozen for the Prove protocol) still imports them; do not change their behavior.
+# consume_stream / persist_complete / write_sources are the original sample-run path. The
+# evaluation harness (System B, frozen for the evaluation protocol) still imports them; do not
+# change their behavior.
 def consume_stream(
     events: Iterable[Any],
     output_dir: Path,

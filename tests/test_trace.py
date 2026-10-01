@@ -1,4 +1,4 @@
-"""Replay tests for the Week 3 trace: lifecycle timeline, exit states, cited pages, review sheet."""
+"""Replay tests for the trace mode: lifecycle timeline, exit states, cited pages, review sheet."""
 
 from __future__ import annotations
 
@@ -358,8 +358,9 @@ def test_review_sheet_flags_markers_without_a_cited_page() -> None:
     assert rows[1]["source_url"] == "" and rows[1]["cited_page_ids"] == ""
 
 
-def test_understand_post_example_flags_one_page_cited_twice() -> None:
-    """The Week 1 sentence the Understand post reviews: [1] and [2] are one docs page."""
+def test_citations_article_example_flags_one_page_cited_twice() -> None:
+    """The first sample run's sentence that the citations article reviews: [1] and [2] are one
+    docs page."""
     from cited_research.models import build_cited_pages
     from cited_research.review import review_rows
 

@@ -7,9 +7,9 @@ searching:end  iteration 1  6 new urls  Found 6 URLs
 iteration:end  iteration 1  Iteration 1 complete (fast mode)
 writing:start  Writing report
 writing:end  Report draft complete
-complete  report -> artifacts/week-3-trace/report.md
-sources (3) -> artifacts/week-3-trace/sources.json
+complete  report -> artifacts/trace-run/report.md
+sources (3) -> artifacts/trace-run/sources.json
   1. Web search  https://docs.ollama.com/capabilities/web-search
   2. Web search  https://docs.ollama.com/capabilities/web-search.md
   3. Subagents and web search in Claude Code  https://ollama.com/blog/web-search-subagents-claude-code
-review sheet -> artifacts/week-3-trace/review-sheet.csv (unreviewed)
+review sheet -> artifacts/trace-run/review-sheet.csv (unreviewed)

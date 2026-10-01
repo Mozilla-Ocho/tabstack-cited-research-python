@@ -17,9 +17,10 @@ from typing import Any, Dict, List, Optional, Sequence
 from .models import CitedPage, load_cited_pages
 from .sanitize import write_text_atomic
 
-# The first nine columns are the Week 3 Understand rubric's per-claim record, in its order:
-# "What makes a citation useful", section "A rubric you can reuse". The CLI fills the first four
-# (claim_id, answer_text, citation_ids, source_url); a reviewer fills the other five.
+# The first nine columns are the per-claim record from the article "What makes a citation
+# useful in an AI-generated answer?", section "A rubric you can reuse", in its order. The CLI
+# fills the first four (claim_id, answer_text, citation_ids, source_url); a reviewer fills the
+# other five.
 RUBRIC_COLUMNS: Sequence[str] = (
     "claim_id",
     "answer_text",

@@ -126,7 +126,7 @@ def sanitize_event(
 
     `seq` is the 1-based arrival order and `elapsed_ms` is measured on the local monotonic clock
     from just before the request was sent. Both are local observations, not server data.
-    The trace path passes `timestamp_key="timestamp_raw"`; the Week 1 and harness logs keep
+    The trace path passes `timestamp_key="timestamp_raw"`; the sample-run and harness logs keep
     `timestamp`.
     """
     name = safe_event_name(event_name)

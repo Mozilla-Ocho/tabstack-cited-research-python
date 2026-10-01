@@ -44,7 +44,7 @@ tests/test_trace.py::test_malformed_and_non_public_sources_are_flagged_not_dropp
 tests/test_trace.py::test_complete_without_citations_is_review_needed PASSED [ 59%]
 tests/test_trace.py::test_review_sheet_uses_rubric_columns_and_leaves_review_fields_blank PASSED [ 61%]
 tests/test_trace.py::test_review_sheet_flags_markers_without_a_cited_page PASSED [ 62%]
-tests/test_trace.py::test_understand_post_example_flags_one_page_cited_twice PASSED [ 64%]
+tests/test_trace.py::test_citations_article_example_flags_one_page_cited_twice PASSED [ 64%]
 tests/test_trace.py::test_review_sheet_neutralises_spreadsheet_formulas PASSED [ 66%]
 tests/test_trace.py::test_review_command_rebuilds_sheet_without_network PASSED [ 67%]
 tests/test_trace.py::test_review_command_refuses_to_overwrite_a_reviewed_sheet PASSED [ 69%]

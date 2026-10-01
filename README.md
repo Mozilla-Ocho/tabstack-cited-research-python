@@ -11,7 +11,7 @@ workflow that needs a current, cited answer from the public web.
 ## What you get
 
 ```text
-artifacts/week-3-trace/
+artifacts/trace-run/
 ├── question.txt              the exact question asked
 ├── command.txt               the exact command that ran (no secrets; the CLI takes none)
 ├── events.sanitized.jsonl    lifecycle timeline: event, seq, elapsed_ms, allowlisted fields
@@ -23,9 +23,9 @@ artifacts/week-3-trace/
 └── stdout.txt / stderr.txt   what the terminal showed
 ```
 
-`artifacts/sample-run/` is the Week 1 run (2026-09-15, schema 1, before the trace files existed).
-`artifacts/week-3-trace/` is the trace run (2026-09-29, schema 2). See
-[`handoff/week-3/BUILD-FINDINGS.md`](handoff/week-3/BUILD-FINDINGS.md).
+`artifacts/sample-run/` is the first sample run (2026-09-15, schema 1, before the trace files existed).
+`artifacts/trace-run/` is the trace run (2026-09-29, schema 2). See
+[`docs/trace/BUILD-FINDINGS.md`](docs/trace/BUILD-FINDINGS.md).
 
 ## Prerequisites
 
@@ -67,12 +67,12 @@ searching:end  iteration 1  6 new urls  Found 6 URLs
 iteration:end  iteration 1  Iteration 1 complete (fast mode)
 writing:start  Writing report
 writing:end  Report draft complete
-complete  report -> artifacts/week-3-trace/report.md
-sources (3) -> artifacts/week-3-trace/sources.json
+complete  report -> artifacts/trace-run/report.md
+sources (3) -> artifacts/trace-run/sources.json
   1. Web search  https://docs.ollama.com/capabilities/web-search
   2. Web search  https://docs.ollama.com/capabilities/web-search.md
   3. Subagents and web search in Claude Code  https://ollama.com/blog/web-search-subagents-claude-code
-review sheet -> artifacts/week-3-trace/review-sheet.csv (unreviewed)
+review sheet -> artifacts/trace-run/review-sheet.csv (unreviewed)
 ```
 
 ## How it works
@@ -125,7 +125,7 @@ to make production fail.
   connection level may already have been accepted, and re-sending it could re-run and re-bill the
   research. A 429 or 5xx therefore exits 3 at once, and a connection failure exits 4. There are
   no application-level retries either. The manifest records both (`sdk_max_retries: 0`,
-  `application_retries: 0`). Changed in schema 2; Week 1 runs and the evaluation harness used
+  `application_retries: 0`). Changed in schema 2; earlier sample runs and the evaluation harness used
   the SDK default of 2.
 - The docs guide says there is no server-side limit on total duration and recommends watching
   for stream silence. That is what `--silence-timeout` does.
@@ -152,7 +152,7 @@ trace, or environment dump.
 
 ## Reviewing citations
 
-`review-sheet.csv` follows the per-claim record in the Week 3 Understand post, "What makes a
+`review-sheet.csv` follows the per-claim record in the article "What makes a
 citation useful". Its first nine columns are the rubric's, in order:
 
 | Column | Filled by | Content |
@@ -184,8 +184,8 @@ uv run cited-research-review artifacts/my-run
 ```
 
 It refuses to overwrite a sheet that already has entries in any reviewer column; `--force`
-overrides that. The committed `artifacts/week-3-trace/review-sheet.csv` has a first-pass review,
-described in `artifacts/week-3-trace/REVIEW-NOTES.md`.
+overrides that. The committed `artifacts/trace-run/review-sheet.csv` has a first-pass review,
+described in `artifacts/trace-run/REVIEW-NOTES.md`.
 
 ## Evaluation harness
 
