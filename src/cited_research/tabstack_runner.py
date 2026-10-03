@@ -15,6 +15,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Dict, Iterable, List, Optional, TextIO, Tuple
 
+import httpx
 import tabstack
 from tabstack import Tabstack
 
@@ -68,6 +69,8 @@ EXIT_CODES = {
     "premature_close": 6,
     "silence_timeout": 7,
     "protocol_error": 8,
+    "stream_transport_error": 9,
+    "unexpected_error": 11,
 }
 
 
@@ -416,6 +419,17 @@ def run_research(
     except tabstack.APIConnectionError as exc:
         status = "transport_error"
         message = f"connection failed: {exc}"
+    except httpx.TransportError as exc:
+        # Raised while iterating the stream (RemoteProtocolError, ReadTimeout, ...): the SDK
+        # wraps errors opening the request, not errors reading it. The request was accepted.
+        status = "stream_transport_error"
+        message = (
+            f"connection failed mid-stream: {type(exc).__name__}: {exc}. "
+            "The request was accepted and may have been billed."
+        )
+    except Exception as exc:
+        status = "unexpected_error"
+        message = f"unexpected failure: {type(exc).__name__}: {exc}"
 
     if status != "complete":
         manifest.terminal_status = status

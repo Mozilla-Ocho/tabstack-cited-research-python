@@ -102,14 +102,21 @@ fetched. Only `complete.metadata.cited_pages` identifies sources.
 | 0 | `complete` received, files written | |
 | 2 | Task-level failure: a streamed `error` event | inside the stream |
 | 3 | HTTP rejection before the stream opened (401, 400, 429, ...) | SDK raises `APIStatusError` |
-| 4 | Connection or transport failure | SDK raises `APIConnectionError` |
+| 4 | Connection or transport failure before the stream opened | SDK raises `APIConnectionError` |
 | 5 | `TABSTACK_API_KEY` not set; no request is made | CLI |
 | 6 | Stream closed before `complete` or `error` | inside the stream |
 | 7 | `--silence-timeout` elapsed with no event; the request may still run and bill | CLI |
 | 8 | Protocol error: a second terminal event after `complete`, or `complete` without a report | inside the stream |
+| 9 | Connection dropped or timed out after the stream opened (`RemoteProtocolError`, `ReadTimeout`, ...); the request was accepted and may bill | `httpx` raises `TransportError` while reading |
+| 11 | Any other unexpected failure; the files are still written | CLI |
 
 Changed in schema 2: a stream that closes early exits 6 (it was 2). Exits 7 and 8 are new.
-`run-manifest.json` records the same state as `terminal_status`.
+Exits 9 and 11 were added after the trace run; before them a mid-stream failure exited 1 with a
+traceback and wrote no `run-manifest.json`. Every non-zero exit above still writes
+`run-manifest.json`, `events.sanitized.jsonl`, and `trace-diagram.md`.
+`run-manifest.json` records the same state as `terminal_status`: `complete`, `task_error`,
+`http_error`, `transport_error`, `premature_close`, `silence_timeout`, `protocol_error`,
+`stream_transport_error`, or `unexpected_error`.
 
 Observed on 2026-09-15 with a fake key: `request rejected (HTTP 401): Unauthorized - Invalid token`,
 exit 3, 195 ms. The `error`-event path is covered by a synthetic fixture test only; we did not try

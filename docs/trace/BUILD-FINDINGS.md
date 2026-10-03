@@ -20,7 +20,8 @@ or reliability.
 
 Single request and event loop; SDK retries off (`max_retries=0`) and no application retries.
 Exits: 2 streamed error, 3 HTTP, 4 transport, 6 closed before terminal, 7 silence timeout,
-8 second terminal event. Timeline: `seq`, local monotonic `elapsed_ms`, `timestamp_raw` and
+8 second terminal event, 9 transport failure mid-stream, 11 unexpected failure (9 and 11 added
+after review of PR #1). Timeline: `seq`, local monotonic `elapsed_ms`, `timestamp_raw` and
 `timestamp_type`, allowlisted counters, redacted messages; written atomically. Cited pages in
 returned order with link checks, duplicate flags (scheme, slash, `.md` variants), stripped
 credentials; `[]` becomes `review_needed_no_sources`. Rubric-shaped review sheet with `support`

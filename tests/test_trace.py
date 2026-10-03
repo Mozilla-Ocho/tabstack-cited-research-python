@@ -152,6 +152,37 @@ def test_request_open_failures(tmp_path: Path, exc: BaseException, code: int, st
     assert (tmp_path / "events.sanitized.jsonl").read_text() == ""
 
 
+@pytest.mark.parametrize(
+    "exc, code, status",
+    [
+        (httpx.RemoteProtocolError("peer closed connection"), 9, "stream_transport_error"),
+        (httpx.ReadTimeout("timed out"), 9, "stream_transport_error"),
+        (ValueError("bad frame"), 11, "unexpected_error"),
+    ],
+)
+def test_mid_stream_failure_still_writes_artifacts(
+    tmp_path: Path, exc: BaseException, code: int, status: str, capsys
+) -> None:
+    events = load_events("truncated-events.jsonl")
+    assert events[-1].event == "searching:start"
+
+    def breaks() -> Iterator[Any]:
+        yield from events
+        raise exc
+
+    client = FakeClient(breaks)
+    assert _run(tmp_path, lambda: client) == code
+    assert len(client.agent.calls) == 1 and client.closed
+    m = _manifest(tmp_path)
+    assert m["terminal_status"] == status
+    assert m["event_sequence"] == ["start", "searching:start"]
+    assert type(exc).__name__ in m["error"]
+    assert [r["event"] for r in _log(tmp_path)] == ["start", "searching:start"]
+    assert f"terminal state {status}" in (tmp_path / "trace-diagram.md").read_text()
+    assert not (tmp_path / "review-sheet.csv").exists()
+    assert type(exc).__name__ in capsys.readouterr().err
+
+
 def test_default_client_disables_sdk_retries(tmp_path: Path, monkeypatch) -> None:
     import cited_research.tabstack_runner as runner
 
