@@ -302,7 +302,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     args = p.parse_args(argv)
     report = (args.run_dir / "report.md").read_text(encoding="utf-8")
-    pages = load_cited_pages(args.run_dir / "sources.json")
+    try:
+        pages = load_cited_pages(args.run_dir / "sources.json")
+    except ValueError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 1
     out = args.run_dir / "review-sheet.csv"
     sheet = review_sheet_csv(report, pages)
     if (

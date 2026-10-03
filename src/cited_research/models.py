@@ -153,9 +153,20 @@ def flag_duplicates(pages: Sequence[CitedPage]) -> None:
 
 def load_cited_pages(path: Path) -> List[CitedPage]:
     """Read a trace-path sources.json back, re-running the link and duplicate checks."""
+    records = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(records, list) or not all(
+        isinstance(r, dict) and "position" in r for r in records
+    ):
+        raise ValueError(
+            f"{path} is not a trace-path sources.json (schema 2): cited pages have no "
+            "`position`. Schema-1 runs (for example artifacts/sample-run) have no review sheet."
+        )
     pages: List[CitedPage] = []
-    for record in json.loads(path.read_text(encoding="utf-8")):
-        page = CitedPage(**record)
+    for record in records:
+        try:
+            page = CitedPage(**record)
+        except TypeError as exc:
+            raise ValueError(f"{path} has an unexpected cited-page record: {exc}") from None
         page.link_ok, page.link_issue = check_public_url(page.url)
         pages.append(page)
     flag_duplicates(pages)

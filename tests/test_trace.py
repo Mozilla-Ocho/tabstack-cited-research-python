@@ -551,6 +551,17 @@ def test_review_command_reads_semicolon_sheets(tmp_path: Path, fake_client_facto
     assert "already has review entries" in capsys.readouterr().err
 
 
+def test_review_command_rejects_schema_1_sources_cleanly(tmp_path: Path, capsys) -> None:
+    from cited_research.review import main as review_main
+
+    (tmp_path / "report.md").write_text("One [1].\n", encoding="utf-8")
+    schema_1 = [{"id": "p1", "url": "https://example.org/1", "claims": [], "source_queries": []}]
+    (tmp_path / "sources.json").write_text(json.dumps(schema_1), encoding="utf-8")
+    assert review_main([str(tmp_path)]) == 1
+    assert "not a trace-path sources.json (schema 2)" in capsys.readouterr().err
+    assert not (tmp_path / "review-sheet.csv").exists()
+
+
 def test_candidate_claims_and_markers() -> None:
     report = "# H\n\nOne [1][2]. Two [3, 1]! Three?\n\n**Sources**\n[1] x\n"
     assert candidate_claims(report) == ["One [1][2].", "Two [3, 1]!", "Three?"]
