@@ -34,6 +34,7 @@ from .review import review_sheet_csv, trace_diagram_md
 from .sanitize import (
     TERMINAL_EVENTS,
     append_jsonl,
+    redact_message,
     safe_event_name,
     sanitize_event,
     scrub_text,
@@ -98,7 +99,7 @@ def _progress_line(event: Any) -> str:
         parts.append(f"{int(urls_new)} new urls")
     message = getattr(data, "message", None)
     if message:
-        parts.append(str(message))
+        parts.append(redact_message(str(message)))
     return "  ".join(parts)
 
 

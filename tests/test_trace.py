@@ -69,25 +69,42 @@ def test_timeline_drops_non_allowlisted_payloads(tmp_path: Path, fake_client_fac
     assert "First sentence" not in blob and "zeta.example" not in blob
 
 
+SENSITIVE_STRINGS = (
+    "private.example",
+    "internal.example",
+    "token=abc",
+    "abc.def.ghi",
+    "zzz.yyy",
+    "ops@example.com",
+    "sk_live_ABCDEFGHIJKLMNOP",
+    "secret_internal_frame",
+    "sk_test_should_not_leak_123456",
+)
+
+
 def test_sensitive_messages_are_redacted(tmp_path: Path, fake_client_factory, monkeypatch) -> None:
     monkeypatch.setenv("TABSTACK_API_KEY", "sk_test_should_not_leak_123456")
     _, factory = fake_client_factory("sensitive-messages.jsonl")
     assert _run(tmp_path, factory) == 2
     blob = "".join(p.read_text(encoding="utf-8") for p in tmp_path.iterdir() if p.is_file())
-    for leaked in (
-        "private.example",
-        "internal.example",
-        "token=abc",
-        "abc.def.ghi",
-        "zzz.yyy",
-        "ops@example.com",
-        "sk_live_ABCDEFGHIJKLMNOP",
-        "secret_internal_frame",
-        "sk_test_should_not_leak_123456",
-    ):
+    for leaked in SENSITIVE_STRINGS:
         assert leaked not in blob, leaked
     searching = _log(tmp_path)[1]
     assert "[url]" in searching["message"] and "[email]" in searching["message"]
+
+
+def test_progress_lines_are_redacted_when_not_quiet(
+    tmp_path: Path, fake_client_factory, monkeypatch, capsys
+) -> None:
+    monkeypatch.setenv("TABSTACK_API_KEY", "sk_test_should_not_leak_123456")
+    _, factory = fake_client_factory("sensitive-messages.jsonl")
+    stdout = io.StringIO()
+    assert _run(tmp_path, factory, quiet=False, stdout=stdout) == 2
+    printed, err = stdout.getvalue(), capsys.readouterr().err
+    assert "searching:start" in printed and "[url]" in printed and "[email]" in printed
+    for text in (printed, err):
+        for leaked in SENSITIVE_STRINGS:
+            assert leaked not in text, leaked
 
 
 # --- exit states ---------------------------------------------------------------------------
