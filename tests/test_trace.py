@@ -575,12 +575,20 @@ def test_candidate_claims_and_markers() -> None:
         ("https://intranet/", False),
         ("https://exa mple.org/", False),
         ("https://example.org:99999/", False),
+        ("https://127.1/", False),
+        ("https://0x7f.1/x", False),
+        ("https://0177.0.0.1/", False),
+        ("https://docs.example2.com/v1", True),
         ("", False),
         (None, False),
     ],
 )
 def test_check_public_url(url: Any, ok: bool) -> None:
     assert check_public_url(url)[0] is ok
+
+
+def test_numeric_hostnames_name_their_issue() -> None:
+    assert check_public_url("https://127.1/") == (False, "numeric_hostname")
 
 
 # --- secrets -------------------------------------------------------------------------------

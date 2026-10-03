@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from typing import Optional, Tuple
 from urllib.parse import urlsplit
 
 PRIVATE_HOST_SUFFIXES = (".local", ".localhost", ".internal", ".lan", ".home", ".corp", ".intranet")
+# Browsers resolve shorthand, hex and octal IPv4 forms (127.1, 0x7f.1, 0177.0.0.1) that
+# `ipaddress` rejects. A TLD cannot be all-numeric (RFC 3696), so numeric labels are refused.
+NUMERIC_LABEL = re.compile(r"^0x[0-9a-f]+$|^\d+$")
 
 
 def check_public_url(url: object) -> Tuple[bool, Optional[str]]:
@@ -39,6 +43,9 @@ def check_public_url(url: object) -> Tuple[bool, Optional[str]]:
     except ValueError:
         if "." not in host:
             return False, "single_label_hostname"
+        labels = host.split(".")
+        if labels[-1].isdigit() or any(NUMERIC_LABEL.match(label) for label in labels):
+            return False, "numeric_hostname"
         return True, None
     if not ip.is_global:
         return False, "non_public_ip"
