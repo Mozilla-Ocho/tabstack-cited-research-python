@@ -556,6 +556,35 @@ def test_candidate_claims_and_markers() -> None:
     assert markers_in("a [1][2] b [2, 3]") == [1, 2, 3]
 
 
+def test_leading_marker_group_attaches_to_the_previous_sentence() -> None:
+    from cited_research.models import build_cited_pages
+    from cited_research.review import review_rows
+
+    report = "One result per call. [2] Next claim [3]."
+    assert candidate_claims(report) == ["One result per call. [2]", "Next claim [3]."]
+    raw = [
+        SimpleNamespace(id=f"p{i}", url=f"https://example.org/{i}", claims=[], source_queries=[])
+        for i in (1, 2, 3)
+    ]
+    pages = build_cited_pages(raw)
+    rows = review_rows(report, pages)
+    assert [(r["citation_ids"], r["auto_flags"]) for r in rows] == [("[2]", ""), ("[3]", "")]
+    assert candidate_claims("Done. [1][2, 3]\nNext [4].") == ["Done. [1][2, 3]", "Next [4]."]
+
+
+def test_no_sentence_split_after_abbreviations_or_initials() -> None:
+    report = (
+        "Some tools, e.g. web search, return snippets [1]. The U.S. docs list it [2]. "
+        "J. Smith wrote it, i.e. the post [3]. Then a new sentence."
+    )
+    assert candidate_claims(report) == [
+        "Some tools, e.g. web search, return snippets [1].",
+        "The U.S. docs list it [2].",
+        "J. Smith wrote it, i.e. the post [3].",
+        "Then a new sentence.",
+    ]
+
+
 # --- URL check -----------------------------------------------------------------------------
 
 

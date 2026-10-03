@@ -42,6 +42,9 @@ SUPPORT_VALUES = ("2", "1", "0", "U")
 
 MARKER_GROUP = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=\S)")
+# No break after letter-dot abbreviations (e.g., i.e., U.S.) or a single capital (J. Smith).
+NO_BREAK_AFTER = re.compile(r"(?:^|\s)\(?(?:(?:[A-Za-z]\.){2,}|[A-Z]\.)$")
+LEADING_MARKERS = re.compile(r"^(?:\[\d+(?:\s*,\s*\d+)*\]\s*)+")
 SOURCES_HEADING = re.compile(r"^\W*(sources|references|citations)\W*$", re.IGNORECASE)
 LIST_PREFIX = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 
@@ -60,7 +63,29 @@ def candidate_claims(report: str) -> List[str]:
         if stripped.startswith("#"):
             continue
         stripped = LIST_PREFIX.sub("", stripped)
-        out.extend(s.strip() for s in SENTENCE_BREAK.split(stripped) if s.strip())
+        out.extend(split_sentences(stripped))
+    return out
+
+
+def split_sentences(line: str) -> List[str]:
+    """Split one line into sentences. A `[n]` group that opens a sentence belongs to the one
+    before it (`...per call. [2] Next claim [3].`)."""
+    sentences: List[str] = []
+    start = 0
+    for brk in SENTENCE_BREAK.finditer(line):
+        if NO_BREAK_AFTER.search(line[start : brk.start()]):
+            continue
+        sentences.append(line[start : brk.start()])
+        start = brk.end()
+    sentences.append(line[start:])
+    out: List[str] = []
+    for sentence in sentences:
+        lead = LEADING_MARKERS.match(sentence)
+        if lead and out:
+            out[-1] = out[-1] + " " + lead.group(0).strip()
+            sentence = sentence[lead.end() :]
+        if sentence.strip():
+            out.append(sentence.strip())
     return out
 
 
