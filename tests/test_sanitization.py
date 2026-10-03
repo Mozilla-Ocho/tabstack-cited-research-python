@@ -4,7 +4,9 @@ import json
 import os
 from pathlib import Path
 
-from cited_research.sanitize import sanitize_event, scrub_text
+import pytest
+
+from cited_research.sanitize import redact_message, sanitize_event, scrub_text
 from cited_research.tabstack_runner import run_research
 
 
@@ -73,3 +75,17 @@ def test_environment_is_not_dumped(tmp_path: Path, fake_client_factory, monkeypa
     run_research("q", "fast", True, None, tmp_path, quiet=True, client_factory=factory)
     blob = "".join(p.read_text(encoding="utf-8") for p in tmp_path.iterdir())
     assert "private-marker-value" not in blob and os.environ["SOME_PRIVATE_VAR"] not in blob
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "sk_live_ABCDEFGHIJKLMNOP",
+        "tsk-0123456789abcdefXYZ",
+        "sk-ant-api03-AbCdEfGhIjKlMnOp_qrs-TUV",
+        "key-ABCDEFGHIJKLMNOP",
+    ],
+)
+def test_keylike_strings_are_redacted_in_hyphen_and_underscore_forms(key: str) -> None:
+    out = redact_message(f"failed with {key} today")
+    assert key not in out and out == "failed with [REDACTED] today"

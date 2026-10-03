@@ -76,7 +76,7 @@ EVENT_NAME_PATTERN = re.compile(r"^[a-z][a-z_:-]{0,39}$")
 URL_PATTERN = re.compile(r"\b(?:https?|ftp|file)://\S+", re.IGNORECASE)
 EMAIL_PATTERN = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
 BEARER_PATTERN = re.compile(r"\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
-KEYLIKE_PATTERN = re.compile(r"\b(sk|pk|tsk|key)_[A-Za-z0-9_]{12,}\b")
+KEYLIKE_PATTERN = re.compile(r"\b(sk|pk|tsk|key)[_-][A-Za-z0-9_-]{12,}")
 MAX_MESSAGE_CHARS = 240
 
 
