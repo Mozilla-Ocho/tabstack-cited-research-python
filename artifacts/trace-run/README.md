@@ -23,3 +23,8 @@ hash `7fe5f20`. The code is identical (same tree, `e68ccc7`). Two things changed
 now `timestamp_raw`, and SDK retries are now off (this manifest shows `sdk_max_retries: 2`).
 The files are left as the run produced them, except `review-sheet.csv`, which was rebuilt
 offline in the rubric format with `uv run cited-research-review artifacts/trace-run`.
+
+The join caveat in `run-manifest.json` and `trace-diagram.md` ("the API does not state this
+join") predates a fix and is wrong: the API reference states cited pages are ordered by first
+citation appearance. Both files carry an added note saying so (`post_run_note` in the manifest,
+a marked note in the diagram); nothing else in them was changed.

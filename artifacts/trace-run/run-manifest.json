@@ -48,6 +48,7 @@
   "nocache": true,
   "os": "Darwin 25.5.0",
   "pages_analyzed": 3.0,
+  "post_run_note": "Added after the run; not written by the CLI. This manifest predates a fix: the caveat saying the API does not state the [n]-to-cited_pages join is wrong. The API reference states cited pages are ordered by first citation appearance. The run was not regenerated.",
   "python_version": "3.12.13",
   "query_sha256": "b3ae1985a9974471e7f0adc17e962b26719384d320ada505fc43ffa219c33e2e",
   "rejected_link_count": 0,
