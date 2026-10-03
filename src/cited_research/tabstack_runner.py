@@ -31,7 +31,7 @@ from .models import (
     build_cited_pages,
     sha256_text,
 )
-from .review import review_sheet_csv, trace_diagram_md
+from .review import review_sheet_csv, trace_diagram_md, write_review_sheet
 from .sanitize import (
     TERMINAL_EVENTS,
     append_jsonl,
@@ -443,7 +443,7 @@ def run_research(
         manifest.review_state = "not_applicable"
     write_jsonl_atomic(output_dir / "events.sanitized.jsonl", records)
     if status == "complete":
-        write_text_atomic(output_dir / "review-sheet.csv", review_sheet_csv(report, pages))
+        write_review_sheet(output_dir / "review-sheet.csv", review_sheet_csv(report, pages))
     write_text_atomic(
         output_dir / "trace-diagram.md",
         trace_diagram_md(records, manifest.terminal_status, pages, manifest.review_state),

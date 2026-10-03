@@ -165,7 +165,8 @@ trace, or environment dump.
 ## Reviewing citations
 
 `review-sheet.csv` follows the per-claim record in the article "What makes a
-citation useful". Its first nine columns are the rubric's, in order:
+citation useful". It is written as UTF-8 with a byte-order mark (`utf-8-sig`) so Excel on
+Windows decodes it. Its first nine columns are the rubric's, in order:
 
 | Column | Filled by | Content |
 |---|---|---|

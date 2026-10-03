@@ -37,7 +37,8 @@ def _log(d: Path) -> List[Dict[str, Any]]:
 
 
 def _sheet(d: Path) -> List[Dict[str, str]]:
-    return list(csv.DictReader(io.StringIO((d / "review-sheet.csv").read_text(encoding="utf-8"))))
+    text = (d / "review-sheet.csv").read_text(encoding="utf-8-sig")
+    return list(csv.DictReader(io.StringIO(text)))
 
 
 # --- timeline ------------------------------------------------------------------------------
@@ -395,7 +396,8 @@ def test_review_sheet_uses_rubric_columns_and_leaves_review_fields_blank(
 ) -> None:
     _, factory = fake_client_factory("complete-ordered-sources.jsonl")
     _run(tmp_path, factory)
-    header = (tmp_path / "review-sheet.csv").read_text(encoding="utf-8").splitlines()[0]
+    assert (tmp_path / "review-sheet.csv").read_bytes().startswith(b"\xef\xbb\xbf")
+    header = (tmp_path / "review-sheet.csv").read_text(encoding="utf-8-sig").splitlines()[0]
     assert header.split(",") == list(REVIEW_COLUMNS)
     assert header.split(",")[:9] == [
         "claim_id",
@@ -469,10 +471,10 @@ def test_review_command_rebuilds_sheet_without_network(
 
     _, factory = fake_client_factory("complete-ordered-sources.jsonl")
     _run(tmp_path, factory)
-    original = (tmp_path / "review-sheet.csv").read_text(encoding="utf-8")
+    original = (tmp_path / "review-sheet.csv").read_bytes()
     (tmp_path / "review-sheet.csv").unlink()
     assert review_main([str(tmp_path)]) == 0
-    assert (tmp_path / "review-sheet.csv").read_text(encoding="utf-8") == original
+    assert (tmp_path / "review-sheet.csv").read_bytes() == original
     assert "4 candidate claims, unreviewed" in capsys.readouterr().out
 
 
@@ -534,6 +536,22 @@ def test_review_command_overwrites_an_untouched_sheet(tmp_path: Path, fake_clien
     _run(tmp_path, factory)
     _write_sheet(tmp_path / "review-sheet.csv", _sheet(tmp_path), delimiter=";")
     assert review_main([str(tmp_path)]) == 0
+
+
+def test_review_command_reads_a_bom_sheet_with_entries(
+    tmp_path: Path, fake_client_factory, capsys
+) -> None:
+    from cited_research.review import main as review_main
+
+    _, factory = fake_client_factory("complete-ordered-sources.jsonl")
+    _run(tmp_path, factory)
+    sheet = tmp_path / "review-sheet.csv"
+    rows = _sheet(tmp_path)
+    rows[0]["support"] = "U"
+    _write_sheet(sheet, rows)
+    sheet.write_bytes(b"\xef\xbb\xbf" + sheet.read_bytes())
+    assert review_main([str(tmp_path)]) == 1
+    assert "already has review entries" in capsys.readouterr().err
 
 
 def test_review_command_reads_semicolon_sheets(tmp_path: Path, fake_client_factory, capsys) -> None:

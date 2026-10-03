@@ -158,6 +158,11 @@ def review_sheet_csv(report: str, sources: Sequence[CitedPage]) -> str:
     return buf.getvalue()
 
 
+def write_review_sheet(path: Path, sheet_csv: str) -> None:
+    """Write the sheet as UTF-8 with a BOM (utf-8-sig) so Excel on Windows decodes it."""
+    write_text_atomic(path, "\ufeff" + sheet_csv.lstrip("\ufeff"))
+
+
 def _mermaid_text(text: Any) -> str:
     # Mermaid message text: no semicolons, hashes, or angle brackets; keep it one short line.
     cleaned = re.sub(r"[;#<>{}]", " ", str(text))
@@ -312,13 +317,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if (
         out.exists()
         and not args.force
-        and not safe_to_overwrite(out.read_text(encoding="utf-8"), sheet)
+        and not safe_to_overwrite(out.read_text(encoding="utf-8-sig"), sheet)
     ):
         sys.stderr.write(
             f"{out} already has review entries or edited rows; not overwriting (use --force).\n"
         )
         return 1
-    write_text_atomic(out, sheet)
+    write_review_sheet(out, sheet)
     print(f"review sheet -> {out} ({len(candidate_claims(report))} candidate claims, unreviewed)")
     return 0
 
