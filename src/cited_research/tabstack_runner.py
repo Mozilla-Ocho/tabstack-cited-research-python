@@ -403,8 +403,8 @@ def run_research(
             report, pages = persist_trace(final_event, output_dir, manifest)
     except ResearchTaskError as exc:
         status = "task_error"
-        where = f" during {exc.activity}" if exc.activity else ""
-        message = f"research failed{where}: {exc}"
+        where = f" during {redact_message(str(exc.activity))}" if exc.activity else ""
+        message = f"research failed{where}: {redact_message(str(exc))}"
     except PrematureCloseError as exc:
         status = "premature_close"
         message = f"stream closed early: {exc}"
@@ -416,21 +416,21 @@ def run_research(
         message = f"unexpected stream behavior: {exc}"
     except tabstack.APIStatusError as exc:
         status = "http_error"
-        message = f"request rejected (HTTP {exc.status_code}): {exc.message}"
+        message = f"request rejected (HTTP {exc.status_code}): {redact_message(exc.message)}"
     except tabstack.APIConnectionError as exc:
         status = "transport_error"
-        message = f"connection failed: {exc}"
+        message = f"connection failed: {redact_message(str(exc))}"
     except httpx.TransportError as exc:
         # Raised while iterating the stream (RemoteProtocolError, ReadTimeout, ...): the SDK
         # wraps errors opening the request, not errors reading it. The request was accepted.
         status = "stream_transport_error"
         message = (
-            f"connection failed mid-stream: {type(exc).__name__}: {exc}. "
+            f"connection failed mid-stream: {type(exc).__name__}: {redact_message(str(exc))}. "
             "The request was accepted and may have been billed."
         )
     except Exception as exc:
         status = "unexpected_error"
-        message = f"unexpected failure: {type(exc).__name__}: {exc}"
+        message = f"unexpected failure: {type(exc).__name__}: {redact_message(str(exc))}"
 
     if status != "complete":
         manifest.terminal_status = status

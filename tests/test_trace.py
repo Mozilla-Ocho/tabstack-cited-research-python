@@ -200,6 +200,34 @@ def test_mid_stream_failure_still_writes_artifacts(
     assert type(exc).__name__ in capsys.readouterr().err
 
 
+def test_error_activity_is_redacted_in_manifest_and_stderr(
+    tmp_path: Path, fake_client_factory, capsys
+) -> None:
+    _, factory = fake_client_factory("error-sensitive-activity.jsonl")
+    assert _run(tmp_path, factory) == 2
+    error = _manifest(tmp_path)["error"]
+    err = capsys.readouterr().err
+    assert "during fetching [url] for [email]" in error
+    for text in (error, err):
+        for leaked in ("private.example", "token=abc", "ops@example.com", "zzz.yyy"):
+            assert leaked not in text, leaked
+
+
+def test_http_error_message_is_redacted_in_manifest_and_stderr(tmp_path: Path, capsys) -> None:
+    req = httpx.Request("POST", "https://api.tabstack.ai/v1/research")
+    exc = tabstack.APIStatusError(
+        "bad key sk_live_ABCDEFGHIJKLMNOP seen at https://internal.example/debug",
+        response=httpx.Response(400, request=req),
+        body=None,
+    )
+    assert _run(tmp_path, lambda: FakeClient(_raise(exc))) == 3
+    error = _manifest(tmp_path)["error"]
+    err = capsys.readouterr().err
+    assert error.startswith("request rejected (HTTP 400): bad key [REDACTED] seen at [url]")
+    for text in (error, err):
+        assert "sk_live_ABCDEFGHIJKLMNOP" not in text and "internal.example" not in text
+
+
 def test_default_client_disables_sdk_retries(tmp_path: Path, monkeypatch) -> None:
     import cited_research.tabstack_runner as runner
 
