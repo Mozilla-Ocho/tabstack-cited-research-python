@@ -77,12 +77,23 @@ EXIT_CODES = {
 }
 
 
+PACKAGE_DIR = Path(__file__).resolve().parent
+
+
 def _git_commit() -> Optional[str]:
+    """HEAD of this package's own checkout, not of the caller's working directory. None when
+    the package is installed outside its repository (for example from a wheel)."""
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=PACKAGE_DIR, capture_output=True, text=True, check=True, timeout=5
+        ).stdout.strip()
+
     try:
-        out = subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True, timeout=5
-        )
-        return out.stdout.strip() or None
+        top = Path(git("rev-parse", "--show-toplevel")).resolve()
+        if (top / "src" / "cited_research").resolve() != PACKAGE_DIR:
+            return None
+        return git("rev-parse", "HEAD") or None
     except Exception:
         return None
 
@@ -362,7 +373,7 @@ def run_research(
     post_terminal_grace: float = POST_TERMINAL_GRACE_SECONDS,
 ) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "question.txt").write_text(query + "\n", encoding="utf-8")
+    (output_dir / "question.txt").write_text(scrub_text(query) + "\n", encoding="utf-8")
     if command is not None:
         (output_dir / "command.txt").write_text(scrub_text(command) + "\n", encoding="utf-8")
 

@@ -687,3 +687,36 @@ def test_silence_timeout_flag_must_be_positive(capsys) -> None:
     with pytest.raises(SystemExit):
         main(["--query", "q", "--output", "x", "--silence-timeout", "0"])
     assert "must be greater than 0" in capsys.readouterr().err
+
+
+def test_question_file_is_scrubbed_like_the_command(
+    tmp_path: Path, fake_client_factory, monkeypatch
+) -> None:
+    secret = "sk_live_pasted_into_the_question_0123"
+    monkeypatch.setenv("TABSTACK_API_KEY", secret)
+    _, factory = fake_client_factory("complete-events.jsonl")
+    run_research(
+        f"why does {secret} fail?",
+        "fast",
+        True,
+        None,
+        tmp_path,
+        quiet=True,
+        client_factory=factory,
+        post_terminal_grace=0.2,
+    )
+    assert (tmp_path / "question.txt").read_text(encoding="utf-8") == "why does [REDACTED] fail?\n"
+
+
+def test_git_commit_is_this_packages_repo_not_the_cwd(tmp_path: Path, monkeypatch) -> None:
+    import subprocess
+
+    import cited_research.tabstack_runner as runner
+
+    repo = Path(runner.__file__).resolve().parents[2]
+    expected = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True
+    ).stdout.strip()
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    monkeypatch.chdir(tmp_path)
+    assert runner._git_commit() == (expected or None)

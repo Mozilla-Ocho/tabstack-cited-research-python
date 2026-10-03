@@ -12,7 +12,7 @@ workflow that needs a current, cited answer from the public web.
 
 ```text
 artifacts/trace-run/
-├── question.txt              the exact question asked
+├── question.txt              the question asked (API key values scrubbed, like command.txt)
 ├── command.txt               the exact command that ran (no secrets; the CLI takes none)
 ├── events.sanitized.jsonl    lifecycle timeline: event, seq, elapsed_ms, allowlisted fields
 ├── report.md                 the final Markdown report
