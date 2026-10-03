@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Iterator, List
+from typing import Any, Callable, Iterable, Iterator, List, Union
 
 import pytest
 from tabstack._models import construct_type
@@ -21,19 +21,24 @@ def load_events(name: str) -> List[Any]:
 
 
 class FakeAgent:
-    def __init__(self, events: List[Any]):
+    """`events` is a list (replayed as-is) or a callable returning an iterable, so tests can
+    raise on open, block mid-stream, or keep the stream open after `complete`."""
+
+    def __init__(self, events: Union[List[Any], Callable[[], Iterable[Any]]]):
         self._events = events
         self.calls: List[dict] = []
 
     def research(self, **kwargs: Any) -> Iterator[Any]:
         self.calls.append(kwargs)
+        if callable(self._events):
+            return iter(self._events())
         return iter(self._events)
 
 
 class FakeClient:
     max_retries = 2
 
-    def __init__(self, events: List[Any]):
+    def __init__(self, events: Union[List[Any], Callable[[], Iterable[Any]]]):
         self.agent = FakeAgent(events)
         self.closed = False
 

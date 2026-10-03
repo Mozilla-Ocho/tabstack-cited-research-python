@@ -1,0 +1,2 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"error","data":{"message":"Research failed","timestamp":1789420000500,"activity":"fetching https://private.example/a?token=abc for ops@example.com","error":{"name":"UpstreamError","message":"upstream said Bearer zzz.yyy"}}}

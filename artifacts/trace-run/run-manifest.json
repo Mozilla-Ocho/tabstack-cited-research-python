@@ -1,0 +1,67 @@
+{
+  "application_retries": 0,
+  "architecture": "arm64",
+  "caveats": [
+    "Timeline is a request lifecycle, not a source-level execution trace.",
+    "complete is evidence the task terminated, not that citations are correct.",
+    "API `claims` are machine-generated and do not verify the page.",
+    "Inline [n] markers are joined to cited_pages by position; the API does not state this join.",
+    "every cited page has claims=[]"
+  ],
+  "cited_page_count": 3,
+  "completed_at_utc": "2026-09-29T18:23:41.713Z",
+  "credit_evidence": {
+    "notes": "Do not infer final call cost from the public per-action rate.",
+    "source": "unavailable",
+    "unit": "credits",
+    "value": null
+  },
+  "duration_ms": 17091,
+  "error": null,
+  "event_counts": {
+    "complete": 1,
+    "iteration:end": 1,
+    "iteration:start": 1,
+    "planning:end": 1,
+    "planning:start": 1,
+    "searching:end": 1,
+    "searching:start": 1,
+    "start": 1,
+    "writing:end": 1,
+    "writing:start": 1
+  },
+  "event_sequence": [
+    "start",
+    "planning:start",
+    "planning:end",
+    "iteration:start",
+    "searching:start",
+    "searching:end",
+    "iteration:end",
+    "writing:start",
+    "writing:end",
+    "complete"
+  ],
+  "fetch_timeout_seconds": null,
+  "first_event_ms": 496,
+  "mode": "fast",
+  "nocache": true,
+  "os": "Darwin 25.5.0",
+  "pages_analyzed": 3.0,
+  "post_run_note": "Added after the run; not written by the CLI. This manifest predates a fix: the caveat saying the API does not state the [n]-to-cited_pages join is wrong. The API reference states cited pages are ordered by first citation appearance. The run was not regenerated.",
+  "python_version": "3.12.13",
+  "query_sha256": "b3ae1985a9974471e7f0adc17e962b26719384d320ada505fc43ffa219c33e2e",
+  "rejected_link_count": 0,
+  "repository_commit": "82b9be98d4add677d1fe650b1a0701d4d198189a",
+  "review_state": "review_needed",
+  "schema_version": 2,
+  "sdk_max_retries": 2,
+  "silence_timeout_seconds": 120.0,
+  "started_at_utc": "2026-09-29T18:23:24.612Z",
+  "stream_closed_after_terminal": true,
+  "tabstack_version": "2.8.5",
+  "terminal_status": "complete",
+  "timestamp_types": [
+    "float"
+  ]
+}

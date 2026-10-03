@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
 import sys
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence
 
 from .tabstack_runner import run_research
 
@@ -21,6 +22,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--fetch-timeout", type=int, default=None, metavar="SECONDS")
     p.add_argument(
+        "--silence-timeout",
+        type=_positive_float,
+        default=None,
+        metavar="SECONDS",
+        help="Stop waiting if no event arrives for this long (exit 7). Off by default. "
+        "The request is not retried and may still complete and bill server-side.",
+    )
+    p.add_argument(
         "--output",
         required=True,
         type=Path,
@@ -30,7 +39,32 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _positive_float(text: str) -> float:
+    value = float(text)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("must be greater than 0")
+    return value
+
+
+def command_line(argv: Sequence[str]) -> str:
+    """The invocation as a copy-pasteable command, one flag per line. The CLI takes no secret
+    arguments, so this is safe to record; the runner still scrubs it."""
+    parts: List[str] = []
+    tokens = list(argv)
+    i = 0
+    while i < len(tokens):
+        token = shlex.quote(tokens[i])
+        has_value = i + 1 < len(tokens) and not tokens[i + 1].startswith("--")
+        if tokens[i].startswith("--") and has_value:
+            token += " " + shlex.quote(tokens[i + 1])
+            i += 1
+        parts.append(token)
+        i += 1
+    return " \\\n  ".join(["cited-research", *parts])
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
     args = build_parser().parse_args(argv)
     if not os.environ.get("TABSTACK_API_KEY"):
         sys.stderr.write(
@@ -45,6 +79,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         fetch_timeout=args.fetch_timeout,
         output_dir=args.output,
         quiet=args.quiet,
+        silence_timeout=args.silence_timeout,
+        command=command_line(argv),
     )
 
 

@@ -1,0 +1,5 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"planning:start","data":{"message":"Planning","timestamp":1789420000000}}
+{"event":"planning:end","data":{"message":"Planning complete: 2 queries","timestamp":1789420000000,"complexity":"simple","queries":["secret-ish query text"]}}
+{"event":"writing:start","data":{"message":"Writing report","timestamp":1789420000000}}
+{"event":"complete","data":{"message":"Research complete","timestamp":1789420000000,"report":"# Title\n\nFirst sentence cites the third page [3]. Second cites the first [1]. An uncited sentence.\n\n- A bullet cites two [2, 3].\n\n## Sources\n\n1. https://zeta.example/one\n","metadata":{"totalPagesAnalyzed":3,"citedPages":[{"id":"z1","url":"https://zeta.example/one","title":"Zeta","claims":[],"sourceQueries":["q"]},{"id":"a2","url":"https://alpha.example/two","title":"Alpha","claims":[],"sourceQueries":["q"]},{"id":"m3","url":"https://mid.example/three","title":"Mid","claims":[],"sourceQueries":["q"]}]}}}

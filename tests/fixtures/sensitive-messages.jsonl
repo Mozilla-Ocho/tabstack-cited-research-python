@@ -1,0 +1,3 @@
+{"event":"start","data":{"message":"Starting research","timestamp":1789420000000}}
+{"event":"searching:start","data":{"message":"Fetching https://private.example/path?token=abc with Authorization: Bearer abc.def.ghi for ops@example.com key sk_live_ABCDEFGHIJKLMNOP","timestamp":1789420000100,"iteration":1,"queries":["q"]}}
+{"event":"error","data":{"message":"Research failed","timestamp":1789420000500,"activity":"searching","error":{"name":"UpstreamError","message":"upstream said Bearer zzz.yyy at https://internal.example/debug","stack":"Error: at secret_internal_frame.js:1"}}}

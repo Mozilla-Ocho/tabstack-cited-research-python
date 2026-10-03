@@ -1,0 +1,107 @@
+[
+  {
+    "position": 1,
+    "id": "V9zyRW",
+    "url": "https://docs.ollama.com/capabilities/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "Ollama RAG web search",
+      "Ollama external tools web search",
+      "Ollama search API implementation",
+      "Ollama search result formats",
+      "LLM web search plugins Ollama"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  },
+  {
+    "position": 2,
+    "id": "DWIDIB",
+    "url": "https://ollama.com/blog/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "Ollama RAG web search",
+      "Ollama external tools web search",
+      "Ollama search API implementation",
+      "Ollama search result formats",
+      "LLM web search plugins Ollama"
+    ],
+    "title": "Web search · Ollama Blog",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  },
+  {
+    "position": 3,
+    "id": "TyC1jO",
+    "url": "https://dev.to/aairom/testing-ollama-web-search-and-a-thinking-model-1dh7",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "Ollama RAG web search",
+      "Ollama external tools web search",
+      "Ollama search API implementation",
+      "Ollama search result formats",
+      "LLM web search plugins Ollama"
+    ],
+    "title": "Testing Ollama Web Search 🔍 and a Thinking Model 💭",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  },
+  {
+    "position": 4,
+    "id": "G9Wd1w",
+    "url": "https://docs.ollama.com/capabilities/web-search.md",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "Ollama RAG web search",
+      "Ollama external tools web search",
+      "Ollama search API implementation",
+      "Ollama search result formats",
+      "LLM web search plugins Ollama"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": 1,
+    "malformed_fields": []
+  },
+  {
+    "position": 5,
+    "id": "oheQ0s",
+    "url": "https://ollama.com/blog/web-search-subagents-claude-code",
+    "claims": [],
+    "source_queries": [
+      "Ollama web search integration 2026",
+      "Ollama RAG web search",
+      "Ollama external tools web search",
+      "Ollama search API implementation",
+      "Ollama search result formats",
+      "LLM web search plugins Ollama"
+    ],
+    "title": "Subagents and web search in Claude Code",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  }
+]

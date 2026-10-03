@@ -37,8 +37,8 @@ def test_stream_without_complete_exits_nonzero(
 ) -> None:
     _, factory = fake_client_factory("truncated-events.jsonl")
     code = run_research("q", "fast", True, None, tmp_path, quiet=True, client_factory=factory)
-    assert code == 2
-    assert "ended without a complete event" in capsys.readouterr().err
+    assert code == 6
+    assert "ended without a complete or error event" in capsys.readouterr().err
     manifest = json.loads((tmp_path / "run-manifest.json").read_text(encoding="utf-8"))
-    assert manifest["terminal_status"] == "task_error"
+    assert manifest["terminal_status"] == "premature_close"
     assert manifest["event_counts"] == {"start": 1, "searching:start": 1}

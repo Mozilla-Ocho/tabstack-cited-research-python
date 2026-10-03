@@ -13,6 +13,7 @@ dependencies = [
 [project.scripts]
 cited-research = "cited_research.cli:main"
 cited-research-eval = "cited_research.harness.cli:main"
+cited-research-review = "cited_research.review:main"
 
 [dependency-groups]
 dev = [
