@@ -498,6 +498,58 @@ def test_review_command_refuses_to_overwrite_a_reviewed_sheet(
     assert _sheet(tmp_path)[0]["support"] == ""
 
 
+def _write_sheet(path: Path, rows: List[Dict[str, str]], delimiter: str = ",") -> None:
+    buf = io.StringIO()
+    writer = csv.DictWriter(
+        buf, fieldnames=list(REVIEW_COLUMNS), delimiter=delimiter, lineterminator="\n"
+    )
+    writer.writeheader()
+    writer.writerows(rows)
+    path.write_text(buf.getvalue(), encoding="utf-8")
+
+
+def test_review_command_refuses_when_rows_were_split_merged_or_deleted(
+    tmp_path: Path, fake_client_factory, capsys
+) -> None:
+    from cited_research.review import main as review_main
+
+    _, factory = fake_client_factory("complete-ordered-sources.jsonl")
+    _run(tmp_path, factory)
+    sheet = tmp_path / "review-sheet.csv"
+    rows = _sheet(tmp_path)
+    merged = dict(rows[0], answer_text=rows[0]["answer_text"] + " " + rows[1]["answer_text"])
+    _write_sheet(sheet, [merged, *rows[2:]])
+    assert review_main([str(tmp_path)]) == 1
+    assert "edited rows" in capsys.readouterr().err
+    assert len(_sheet(tmp_path)) == 3
+    assert review_main([str(tmp_path), "--force"]) == 0
+    assert len(_sheet(tmp_path)) == 4
+
+
+def test_review_command_overwrites_an_untouched_sheet(tmp_path: Path, fake_client_factory) -> None:
+    from cited_research.review import main as review_main
+
+    _, factory = fake_client_factory("complete-ordered-sources.jsonl")
+    _run(tmp_path, factory)
+    _write_sheet(tmp_path / "review-sheet.csv", _sheet(tmp_path), delimiter=";")
+    assert review_main([str(tmp_path)]) == 0
+
+
+def test_review_command_reads_semicolon_sheets(tmp_path: Path, fake_client_factory, capsys) -> None:
+    from cited_research.review import has_review_entries
+    from cited_research.review import main as review_main
+
+    _, factory = fake_client_factory("complete-ordered-sources.jsonl")
+    _run(tmp_path, factory)
+    sheet = tmp_path / "review-sheet.csv"
+    rows = _sheet(tmp_path)
+    rows[3]["support"] = "1"
+    _write_sheet(sheet, rows, delimiter=";")
+    assert has_review_entries(sheet.read_text(encoding="utf-8"))
+    assert review_main([str(tmp_path)]) == 1
+    assert "already has review entries" in capsys.readouterr().err
+
+
 def test_candidate_claims_and_markers() -> None:
     report = "# H\n\nOne [1][2]. Two [3, 1]! Three?\n\n**Sources**\n[1] x\n"
     assert candidate_claims(report) == ["One [1][2].", "Two [3, 1]!", "Three?"]

@@ -12,7 +12,7 @@ import io
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from .models import CitedPage, load_cited_pages
 from .sanitize import write_text_atomic
@@ -236,12 +236,33 @@ REVIEWER_COLUMNS: Sequence[str] = (
 )
 
 
+def read_sheet(sheet_csv: str) -> List[Dict[str, str]]:
+    """Parse a review sheet as a spreadsheet may have saved it: optional UTF-8 BOM, and a `,`,
+    `;` (EU-locale Excel) or tab delimiter."""
+    text = sheet_csv.lstrip("\ufeff")
+    try:
+        dialect: Any = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t")
+    except csv.Error:
+        dialect = csv.excel
+    return list(csv.DictReader(io.StringIO(text), dialect=dialect))
+
+
 def has_review_entries(sheet_csv: str) -> bool:
     return any(
-        (row.get(c) or "").strip()
-        for row in csv.DictReader(io.StringIO(sheet_csv))
-        for c in REVIEWER_COLUMNS
+        (row.get(c) or "").strip() for row in read_sheet(sheet_csv) for c in REVIEWER_COLUMNS
     )
+
+
+def _claim_set(sheet_csv: str) -> Set[Tuple[str, str]]:
+    return {(r.get("claim_id") or "", r.get("answer_text") or "") for r in read_sheet(sheet_csv)}
+
+
+def safe_to_overwrite(existing_csv: str, regenerated_csv: str) -> bool:
+    """True only if the existing sheet has no reviewer entries and still has exactly the rows
+    the CLI would generate. Split, merged, or deleted rows count as review work."""
+    if has_review_entries(existing_csv):
+        return False
+    return _claim_set(existing_csv) == _claim_set(regenerated_csv)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -258,10 +279,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     report = (args.run_dir / "report.md").read_text(encoding="utf-8")
     pages = load_cited_pages(args.run_dir / "sources.json")
     out = args.run_dir / "review-sheet.csv"
-    if out.exists() and not args.force and has_review_entries(out.read_text(encoding="utf-8")):
-        sys.stderr.write(f"{out} already has review entries; not overwriting (use --force).\n")
+    sheet = review_sheet_csv(report, pages)
+    if (
+        out.exists()
+        and not args.force
+        and not safe_to_overwrite(out.read_text(encoding="utf-8"), sheet)
+    ):
+        sys.stderr.write(
+            f"{out} already has review entries or edited rows; not overwriting (use --force).\n"
+        )
         return 1
-    write_text_atomic(out, review_sheet_csv(report, pages))
+    write_text_atomic(out, sheet)
     print(f"review sheet -> {out} ({len(candidate_claims(report))} candidate claims, unreviewed)")
     return 0
 

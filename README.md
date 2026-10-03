@@ -190,8 +190,10 @@ To rebuild the sheet for an existing run without another API call:
 uv run cited-research-review artifacts/my-run
 ```
 
-It refuses to overwrite a sheet that already has entries in any reviewer column; `--force`
-overrides that. The committed `artifacts/trace-run/review-sheet.csv` has a first-pass review,
+It refuses to overwrite a sheet that already has entries in any reviewer column, or whose
+`claim_id`/`answer_text` rows no longer match what it would generate (rows split, merged, or
+deleted); `--force` overrides that. Sheets saved with `;` or tab delimiters (EU-locale Excel)
+are read correctly. The committed `artifacts/trace-run/review-sheet.csv` has a first-pass review,
 described in `artifacts/trace-run/REVIEW-NOTES.md`.
 
 ## Evaluation harness
