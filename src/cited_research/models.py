@@ -193,6 +193,8 @@ class RunManifest:
     duration_ms: Optional[int] = None
     first_event_ms: Optional[int] = None
     terminal_status: str = "unknown"
+    # Set only on committed artifacts that predate a fix, to say so.
+    post_run_note: Optional[str] = None
     event_counts: Dict[str, int] = field(default_factory=dict)
     event_sequence: List[str] = field(default_factory=list)
     pages_analyzed: Optional[float] = None

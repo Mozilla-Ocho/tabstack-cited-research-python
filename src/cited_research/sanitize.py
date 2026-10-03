@@ -76,7 +76,11 @@ EVENT_NAME_PATTERN = re.compile(r"^[a-z][a-z_:-]{0,39}$")
 URL_PATTERN = re.compile(r"\b(?:https?|ftp|file)://\S+", re.IGNORECASE)
 EMAIL_PATTERN = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
 BEARER_PATTERN = re.compile(r"\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
-KEYLIKE_PATTERN = re.compile(r"\b(sk|pk|tsk|key)[_-][A-Za-z0-9_-]{12,}")
+# Underscore forms for every prefix and hyphen forms for sk-/pk-/tsk- (sk-ant-..., tsk-...).
+# key- must be one unbroken token, so hyphenated phrases like "key-takeaways-from-2026" survive.
+KEYLIKE_PATTERN = re.compile(
+    r"\b(?:(?:sk|pk|tsk|key)_[A-Za-z0-9_-]{12,}|(?:sk|pk|tsk)-[A-Za-z0-9_-]{12,}|key-[A-Za-z0-9_]{12,}\b)"
+)
 MAX_MESSAGE_CHARS = 240
 
 

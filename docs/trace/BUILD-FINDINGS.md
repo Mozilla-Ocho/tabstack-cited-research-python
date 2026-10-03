@@ -26,7 +26,7 @@ Exits: 2 streamed error, 3 HTTP, 4 transport, 6 closed before terminal, 7 silenc
 returned order with link checks, duplicate flags (scheme, slash, `.md` variants), stripped
 credentials; `[]` becomes `review_needed_no_sources`. Rubric-shaped review sheet with `support`
 always blank; `cited-research-review DIR` rebuilds it offline. Per-run diagram. The original path
-used by the frozen evaluation harness is unchanged. 62 offline tests pass
+used by the frozen evaluation harness is unchanged. 62 offline tests passed at the time of the run
 (`docs/trace/TEST-OUTPUT.txt`), also from a fresh `uv sync --frozen` clone with no key.
 
 ## Observed: worked-example run, 2026-09-29 18:23:24Z
@@ -57,7 +57,7 @@ used by the frozen evaluation harness is unchanged. 62 offline tests pass
 
 ## Observed: fresh-clone reproduction, 2026-09-29 18:58:36Z
 
-Clone, `uv sync --frozen`, 62 tests with no key, then the README command
+Clone, `uv sync --frozen`, 62 tests (at the time) with no key, then the README command
 (`artifacts/trace-repro/`). `complete`, exit 0, 12,163 ms, the same 10 events, 5 cited pages
 (`claims: []`; `.md` duplicate flagged), 1 of 7 sentences uncited, `sdk_max_retries: 0`,
 `timestamp_raw` float, `iteration:end` with `is_last: true` and `stop_reason: max_iterations`.

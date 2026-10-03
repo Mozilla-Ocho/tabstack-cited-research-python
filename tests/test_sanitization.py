@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from cited_research.sanitize import redact_message, sanitize_event, scrub_text
+from cited_research.sanitize import KEYLIKE_PATTERN, redact_message, sanitize_event, scrub_text
 from cited_research.tabstack_runner import run_research
 
 
@@ -89,3 +89,8 @@ def test_environment_is_not_dumped(tmp_path: Path, fake_client_factory, monkeypa
 def test_keylike_strings_are_redacted_in_hyphen_and_underscore_forms(key: str) -> None:
     out = redact_message(f"failed with {key} today")
     assert key not in out and out == "failed with [REDACTED] today"
+
+
+@pytest.mark.parametrize("phrase", ["key-takeaways-from-2026", "key-performance-indicators-report", "task-abcdefghijklmnop"])
+def test_hyphenated_phrases_are_not_redacted_as_keys(phrase: str) -> None:
+    assert KEYLIKE_PATTERN.sub("[REDACTED]", phrase) == phrase

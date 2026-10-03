@@ -2,7 +2,7 @@
 
 A second live run, made from a fresh clone of `trace-mode` at `98be5ca`. The same machine was
 used, but the run followed the README from scratch: `git clone`, `uv sync --frozen`, the offline
-tests with no API key (62 passed), then the documented command. This is evidence that the
+tests with no API key (62 passed at the time), then the documented command. This is evidence that the
 documented path reproduces. It is **not** the article's worked example, and it has **not** been
 reviewed; the review sheet is as generated.
 
