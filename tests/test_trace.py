@@ -131,6 +131,7 @@ def _raise(exc: BaseException):
         ("truncated-events.jsonl", 6, "premature_close"),
         ("duplicate-complete.jsonl", 8, "protocol_error"),
         ("complete-then-error.jsonl", 8, "protocol_error"),
+        ("complete-no-report.jsonl", 10, "malformed_complete"),
     ],
 )
 def test_replay_exit_states(
@@ -145,7 +146,7 @@ def test_replay_exit_states(
     assert (tmp_path / "events.sanitized.jsonl").exists()
     assert (tmp_path / "trace-diagram.md").exists()
     assert (tmp_path / "review-sheet.csv").exists() == (status == "complete")
-    if status == "protocol_error":
+    if status in ("protocol_error", "malformed_complete"):
         assert not (tmp_path / "report.md").exists()
 
 

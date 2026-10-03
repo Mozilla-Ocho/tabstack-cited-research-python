@@ -21,6 +21,7 @@ from tabstack import Tabstack
 
 from .models import (
     CitedPage,
+    MalformedCompleteError,
     PrematureCloseError,
     ProtocolError,
     ResearchTaskError,
@@ -71,6 +72,7 @@ EXIT_CODES = {
     "silence_timeout": 7,
     "protocol_error": 8,
     "stream_transport_error": 9,
+    "malformed_complete": 10,
     "unexpected_error": 11,
 }
 
@@ -301,7 +303,7 @@ def persist_trace(
     data = final_event.data
     report = getattr(data, "report", None)
     if not isinstance(report, str):
-        raise ProtocolError("complete event has no report string")
+        raise MalformedCompleteError("complete event has no report string")
     metadata = getattr(data, "metadata", None)
     cited = getattr(metadata, "cited_pages", None)
     if cited is not None and not isinstance(cited, list):
@@ -411,6 +413,9 @@ def run_research(
     except SilenceTimeoutError as exc:
         status = "silence_timeout"
         message = f"gave up waiting: {exc}. The request may still be running and billed."
+    except MalformedCompleteError as exc:
+        status = "malformed_complete"
+        message = f"unusable complete event: {exc}"
     except ProtocolError as exc:
         status = "protocol_error"
         message = f"unexpected stream behavior: {exc}"

@@ -106,17 +106,19 @@ fetched. Only `complete.metadata.cited_pages` identifies sources.
 | 5 | `TABSTACK_API_KEY` not set; no request is made | CLI |
 | 6 | Stream closed before `complete` or `error` | inside the stream |
 | 7 | `--silence-timeout` elapsed with no event; the request may still run and bill | CLI |
-| 8 | Protocol error: a second terminal event after `complete`, or `complete` without a report | inside the stream |
+| 8 | Protocol error: a second terminal event (`complete` or `error`) after `complete` | inside the stream |
 | 9 | Connection dropped or timed out after the stream opened (`RemoteProtocolError`, `ReadTimeout`, ...); the request was accepted and may bill | `httpx` raises `TransportError` while reading |
+| 10 | `complete` arrived without a report string; nothing is written as `report.md` | CLI |
 | 11 | Any other unexpected failure; the files are still written | CLI |
 
 Changed in schema 2: a stream that closes early exits 6 (it was 2). Exits 7 and 8 are new.
-Exits 9 and 11 were added after the trace run; before them a mid-stream failure exited 1 with a
-traceback and wrote no `run-manifest.json`. Every non-zero exit above still writes
-`run-manifest.json`, `events.sanitized.jsonl`, and `trace-diagram.md`.
+Exits 9, 10, and 11 were added after the trace run. Before them a mid-stream failure exited 1
+with a traceback and wrote no `run-manifest.json`, and a `complete` without a report exited 8.
+Every exit except 5 writes `run-manifest.json`, `events.sanitized.jsonl`, and
+`trace-diagram.md`.
 `run-manifest.json` records the same state as `terminal_status`: `complete`, `task_error`,
 `http_error`, `transport_error`, `premature_close`, `silence_timeout`, `protocol_error`,
-`stream_transport_error`, or `unexpected_error`.
+`stream_transport_error`, `malformed_complete`, or `unexpected_error`.
 
 Observed on 2026-09-15 with a fake key: `request rejected (HTTP 401): Unauthorized - Invalid token`,
 exit 3, 195 ms. The `error`-event path is covered by a synthetic fixture test only; we did not try

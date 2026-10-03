@@ -36,6 +36,10 @@ class ProtocolError(RuntimeError):
     """The stream broke the documented contract, e.g. a second terminal event."""
 
 
+class MalformedCompleteError(ProtocolError):
+    """A `complete` event arrived without the fields a report needs (no report string)."""
+
+
 def _str_list(value: Any) -> Optional[List[str]]:
     if value is None:
         return []
