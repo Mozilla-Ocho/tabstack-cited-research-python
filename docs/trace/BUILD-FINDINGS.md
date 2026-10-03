@@ -32,7 +32,7 @@ used by the frozen evaluation harness is unchanged. 62 offline tests pass
 ## Observed: worked-example run, 2026-09-29 18:23:24Z
 
 - `complete`, exit 0, 17,091 ms; first event 496 ms; the same 10-event sequence as the first sample run, each
-  once; the stream closed by itself after `complete`. Gaps by arrival: planning ~1.1 s,
+  once (the fast-mode subset of the 23 event types in the SDK 2.8.5 `ResearchEvent` union); the stream closed by itself after `complete`. Gaps by arrival: planning ~1.1 s,
   searching ~5.3 s, writing ~10.2 s (client-side, not server stage timings). Events arrive in
   bursts that share a timestamp; order comes from `seq`.
 - `timestamp`: a float in epoch ms on every event. 3 cited pages, `claims: []` on all (15 of 15
@@ -51,7 +51,9 @@ used by the frozen evaluation harness is unchanged. 62 offline tests pass
   The `1`s are qualifiers the report dropped or added: "snippet" becomes page content (C04),
   unstated MCP output format (C07), "Multi-Context Processor" (C06), "specific" models when the
   post says any cloud model (C08). The output half of the question is the weakly supported part.
-- Cost not measured.
+- Cost not measured. The SDK types the `complete` payload's `metadata.metrics.tokens` as
+  per-model input/output token counts, but there is no credit or cost field, and the sanitizer
+  drops `metrics` entirely, so the manifest's `credit_evidence.source` stays `unavailable`.
 
 ## Observed: fresh-clone reproduction, 2026-09-29 18:58:36Z
 
