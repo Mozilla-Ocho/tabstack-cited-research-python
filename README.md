@@ -124,9 +124,12 @@ to make production fail.
 
 ## Timeouts, retries, cleanup
 
-- The SDK applies a 600 s per-request timeout to `/research` streams. This CLI adds no shorter
-  total timeout, so a healthy long run is not killed early. `--silence-timeout` is optional and
-  measures the gap between events (including the wait for the first one), not total duration.
+- The SDK sets `timeout = 600` on `/research`, which becomes `httpx.Timeout(600)`: connect,
+  read, write, and pool are each 600 s. On a stream that is a 600 s silence timeout between
+  events, not a cap on the whole request; a run that keeps sending events is never cut off by
+  it. If it fires mid-stream the CLI exits 9. This CLI adds no total timeout either.
+  `--silence-timeout` is optional and measures the gap between events (including the wait for
+  the first one), not total duration.
 - The SDK retries transport-level failures (connection errors, 408, 409, 429, 5xx) twice by
   default. The CLI turns that off (`Tabstack(max_retries=0)`): a request that failed at the
   connection level may already have been accepted, and re-sending it could re-run and re-bill the

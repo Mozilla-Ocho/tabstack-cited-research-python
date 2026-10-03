@@ -82,7 +82,7 @@ Checked word for word against the raw HTML of the [guide](https://docs.tabstack.
 | Cited-page order | not stated | "ordered by first citation appearance" | same text in the SDK docstring; markers matched it |
 | `reliability` | optional, "absent for this source" in the example | optional `"low"`, `"medium"` or `"high"` | absent in fast mode |
 | Terminal event | "complete fires once, at the end" | no mention of `done` | no `done`; stream closed after `complete` |
-| Total timeout | "There is no server-side timeout on the request as a whole" | not stated | SDK sets 600 s client-side |
+| Total timeout | "There is no server-side timeout on the request as a whole" | not stated | SDK sets `httpx.Timeout(600)` client-side: a 600 s silence timeout between events (connect/read/write/pool), not a total cap |
 | Client timeout | "Watch for stream silence instead" | not stated | `--silence-timeout` implements this |
 | `iteration:end` | "Adds isLast and an optional stopReason" | `isLast : boolean`, `stopReason` | now allowlisted |
 | `query` length | not stated | "Maximum 10,000 characters" | not validated client-side; over-limit behavior not tested |
