@@ -650,7 +650,9 @@ def test_numeric_hostnames_name_their_issue() -> None:
     assert check_public_url("https://127.1/") == (False, "numeric_hostname")
 
 
-@pytest.mark.parametrize("url", ["https://www.163.com/", "https://1password.com/", "https://3m.com/x"])
+@pytest.mark.parametrize(
+    "url", ["https://www.163.com/", "https://1password.com/", "https://3m.com/x"]
+)
 def test_real_hosts_with_numeric_labels_are_allowed(url: str) -> None:
     assert check_public_url(url)[0] is True
 
