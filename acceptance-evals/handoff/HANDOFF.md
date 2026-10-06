@@ -12,7 +12,8 @@ recorded date. Nothing here measures typical latency, cost, accuracy, or reliabi
 - Implementation commit used for the live pilot: `452aa44c63d110e85e0c71f3118b8a81ca80a293`
   (`implementation_dirty: false` in the pilot manifest). Two later commits change tests only.
   Code-review fixes landed afterwards in `ef2632a` (summarize, prepare-review, ledger write,
-  URL checks); the pilot artifacts and review sheets are byte-identical after them, and
+  URL checks), then the PR #3 review fixes (one deadline signal, finite flags, per-attempt
+  commit check, ledger lock); the pilot artifacts and review sheets are byte-identical after them, and
   `summarize` output on the pilot is unchanged except `generated_at_utc`.
 - Changed files: `FILES.txt` in this folder (`git diff --name-status` against `origin/main`).
 
@@ -75,8 +76,8 @@ from `uv.lock`, which is unchanged from `origin/main`. Offline tests also pass o
 
 ## 4. Offline test receipt and fixtures
 
-`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 174 passed
-(81 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 174 passed.
+`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 190 passed
+(97 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 190 passed.
 
 Fixtures: `tests/fixtures/*.jsonl` replayed through the SDK's own `ResearchEvent` model
 (`complete-events`, `complete-ordered-sources`, `complete-no-cited-pages`,

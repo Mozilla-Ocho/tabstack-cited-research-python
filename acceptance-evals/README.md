@@ -48,7 +48,11 @@ uv run cited-research-accept summarize --run acceptance-evals/runs/20261006-pilo
 `run-one` refuses, before any request, when the dataset has no freeze record, its sha256 no
 longer matches the freeze, any row is `pending`, evidence is older than the freeze's
 `max_evidence_age_days` (default 30), the run directory was started with a different
-configuration, or the question already has an attempt in the run. `--another-attempt` records
+configuration or a different implementation commit or dirty state, or the question already has
+an attempt in the run. Each attempt records the commit of the checkout that ran it. Parallel
+`run-one` processes on one run directory take turns on an OS file lock (`.attempts.lock`) for
+every ledger update, so no attempt record is lost. `--silence-timeout`, `--deadline`, and
+`--fetch-timeout` must be finite and greater than 0. `--another-attempt` records
 a new, separate attempt (`Q05-a2`); nothing is ever reused or overwritten.
 
 ### Evidence expiry
