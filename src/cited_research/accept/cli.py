@@ -100,7 +100,13 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--run", required=True, type=Path, help="Run directory (created if absent).")
     r.add_argument("--mode", choices=("fast", "balanced"), default="fast")
     r.add_argument("--nocache", action="store_true")
-    r.add_argument("--fetch-timeout", type=_positive_int, default=None, metavar="SECONDS")
+    r.add_argument(
+        "--fetch-timeout",
+        type=_positive_int,
+        default=None,
+        metavar="SECONDS",
+        help="Per-page fetch timeout: a whole number of seconds greater than 0.",
+    )
     r.add_argument(
         "--silence-timeout",
         type=_positive_float,

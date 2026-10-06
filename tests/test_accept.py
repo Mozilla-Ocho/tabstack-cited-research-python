@@ -1039,28 +1039,180 @@ def test_max_evidence_age_must_be_positive(capsys) -> None:
     assert "greater than 0" in capsys.readouterr().err
 
 
-def test_implementation_is_recorded_per_attempt_and_must_not_change(
+def _fake_package(root: Path) -> Path:
+    pkg = root / "src" / "cited_research"
+    (pkg / "accept").mkdir(parents=True)
+    (pkg / "__init__.py").write_text("x = 1\n")
+    (pkg / "accept" / "run.py").write_text("y = 2\n")
+    (root / "pyproject.toml").write_text("[project]\n")
+    (root / "uv.lock").write_text("lock\n")
+    (root / "README.md").write_text("docs\n")
+    return pkg
+
+
+def test_implementation_identity_follows_code_content_only(tmp_path: Path) -> None:
+    from cited_research.accept.run import implementation_identity
+
+    pkg = _fake_package(tmp_path)
+    base, paths = implementation_identity(pkg)
+    assert paths == [
+        "cited_research/__init__.py",
+        "cited_research/accept/run.py",
+        "pyproject.toml",
+        "uv.lock",
+    ]
+    # Non-implementation changes (docs, artifacts, a new commit) and bytecode do not count.
+    (tmp_path / "README.md").write_text("more docs\n")
+    (tmp_path / "acceptance-evals").mkdir()
+    (tmp_path / "acceptance-evals" / "x.json").write_text("{}")
+    (pkg / "__pycache__").mkdir()
+    (pkg / "__pycache__" / "run.cpython-312.pyc").write_bytes(b"\0")
+    assert implementation_identity(pkg)[0] == base
+    # Two different uncommitted edits differ from each other and from the base.
+    (pkg / "accept" / "run.py").write_text("y = 3\n")
+    edit_a = implementation_identity(pkg)[0]
+    (pkg / "accept" / "run.py").write_text("y = 4\n")
+    edit_b = implementation_identity(pkg)[0]
+    assert len({base, edit_a, edit_b}) == 3
+    (pkg / "accept" / "run.py").write_text("y = 2\n")
+    assert implementation_identity(pkg)[0] == base, "same content, same identity"
+    # Untracked files under the package and lockfile changes count.
+    (pkg / "accept" / "new.py").write_text("z = 1\n")
+    assert implementation_identity(pkg)[0] != base
+    (pkg / "accept" / "new.py").unlink()
+    (tmp_path / "uv.lock").write_text("lock2\n")
+    assert implementation_identity(pkg)[0] != base
+
+
+def test_implementation_identity_unreadable_file_is_an_error(tmp_path: Path) -> None:
+    from cited_research.accept.run import ImplementationUnknown, implementation_identity
+
+    pkg = _fake_package(tmp_path)
+    (pkg / "accept" / "run.py").chmod(0)
+    try:
+        with pytest.raises(ImplementationUnknown, match="cannot read"):
+            implementation_identity(pkg)
+    finally:
+        (pkg / "accept" / "run.py").chmod(0o644)
+
+
+def test_run_compares_implementation_content_not_head(
     tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import cited_research.accept.run as run_mod
 
     run = tmp_path / "run"
+    ident = {"sha": "1" * 64}
+    monkeypatch.setattr(run_mod, "implementation_identity", lambda: (ident["sha"], ["p"]))
     monkeypatch.setattr(run_mod, "_git_commit", lambda: "a" * 40)
     monkeypatch.setattr(run_mod, "_implementation_dirty", lambda: False)
     attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
-    assert _attempts(run)[0]["implementation_commit"] == "a" * 40
+    first = _attempts(run)[0]
+    assert first["implementation_sha256"] == "1" * 64
+    assert first["implementation_commit"] == "a" * 40
+    # A docs-only commit moves HEAD; the implementation content is the same: allowed.
     monkeypatch.setattr(run_mod, "_git_commit", lambda: "b" * 40)
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    assert _attempts(run)[1]["implementation_commit"] == "b" * 40, "HEAD recorded per attempt"
+    # Different code (committed or not): refused, nothing reserved.
+    ident["sha"] = "2" * 64
+    with pytest.raises(RunRefused, match="same implementation"):
+        attempt(synth_dataset, run, "Q03", fixture_client("complete-events.jsonl"))
+    assert len(_attempts(run)) == 2 and not (run / "answers" / "Q03-a1").exists()
+
+
+def test_git_failure_is_provenance_only_never_a_silent_pass(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    run = tmp_path / "run"
+    monkeypatch.setattr(run_mod, "implementation_identity", lambda: ("1" * 64, ["p"]))
+    monkeypatch.setattr(run_mod, "_git_commit", lambda: None)  # git error or 5 s timeout
+    monkeypatch.setattr(run_mod, "_implementation_dirty", lambda: None)
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    a = _attempts(run)[0]
+    assert a["implementation_commit"] is None and a["implementation_dirty"] is None
+    assert any("git failed" in m for m in a["missing_data"])
+    # The comparison never relies on git: different code is still refused with git down.
+    monkeypatch.setattr(run_mod, "implementation_identity", lambda: ("2" * 64, ["p"]))
     with pytest.raises(RunRefused, match="same implementation"):
         attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
-    monkeypatch.setattr(run_mod, "_git_commit", lambda: "a" * 40)
-    monkeypatch.setattr(run_mod, "_implementation_dirty", lambda: True)
-    with pytest.raises(RunRefused, match="dirty=False"):
+
+
+def test_unreadable_implementation_refuses_before_any_request(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    def broken() -> Any:
+        raise run_mod.ImplementationUnknown("cannot read implementation file: denied")
+
+    monkeypatch.setattr(run_mod, "implementation_identity", broken)
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    with pytest.raises(RunRefused, match="cannot identify the implementation"):
+        attempt(synth_dataset, tmp_path / "run", "Q01", lambda: client)
+    assert client.agent.calls == [] and not (tmp_path / "run").exists()
+
+
+def test_run_dir_without_identity_is_refused(tmp_path: Path, synth_dataset: Path) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    m = json.loads((run / "manifest.json").read_text())
+    del m["implementation_sha256"]
+    (run / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(RunRefused, match="predates implementation identity"):
         attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
-    assert len(_attempts(run)) == 1
-    assert not (run / "answers" / "Q02-a1").exists()
-    monkeypatch.setattr(run_mod, "_implementation_dirty", lambda: False)
-    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
-    assert [a["implementation_commit"] for a in _attempts(run)] == ["a" * 40, "a" * 40]
+
+
+def test_lock_retry_waits_only_on_contention_and_is_bounded() -> None:
+    import errno
+
+    from cited_research.accept.run import LedgerLockError, lock_with_retry
+
+    calls = {"n": 0}
+
+    def busy_twice() -> None:
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise OSError(errno.EDEADLK, "Resource deadlock avoided")
+
+    lock_with_retry(busy_twice, max_wait=60, clock=lambda: 0.0)
+    assert calls["n"] == 3
+
+    now = {"t": 0.0}
+
+    def clock() -> float:
+        now["t"] += 10.0
+        return now["t"]
+
+    def always_busy() -> None:
+        raise OSError(errno.EACCES, "Permission denied")
+
+    with pytest.raises(LedgerLockError, match="still locked by another run-one after 60s"):
+        lock_with_retry(always_busy, max_wait=60, clock=clock)
+
+    tries = {"n": 0}
+
+    def bad_handle() -> None:
+        tries["n"] += 1
+        raise OSError(errno.EBADF, "Bad file descriptor")
+
+    with pytest.raises(LedgerLockError, match="cannot lock the run ledger"):
+        lock_with_retry(bad_handle, max_wait=60, clock=lambda: 0.0)
+    assert tries["n"] == 1, "non-contention errors fail at once"
+
+
+def test_fetch_timeout_help_says_whole_seconds() -> None:
+    from cited_research.cli import build_parser as trace_parser
+
+    run_help = " ".join(
+        cli.build_parser()._subparsers._group_actions[0].choices["run-one"].format_help().split()  # type: ignore[union-attr]
+    )
+    assert "whole number of seconds greater than 0" in run_help
+    assert "whole number of seconds greater than 0" in " ".join(
+        trace_parser().format_help().split()
+    )
 
 
 def test_two_processes_on_one_run_lose_no_attempts(tmp_path: Path, synth_dataset: Path) -> None:

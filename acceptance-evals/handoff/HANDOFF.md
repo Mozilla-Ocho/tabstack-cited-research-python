@@ -13,7 +13,8 @@ recorded date. Nothing here measures typical latency, cost, accuracy, or reliabi
   (`implementation_dirty: false` in the pilot manifest). Two later commits change tests only.
   Code-review fixes landed afterwards in `ef2632a` (summarize, prepare-review, ledger write,
   URL checks), then the PR #3 review fixes (one deadline signal, finite flags, per-attempt
-  commit check, ledger lock); the pilot artifacts and review sheets are byte-identical after them, and
+  commit check, ledger lock), then the second-review fixes (content-hash implementation
+  identity instead of HEAD, bounded Windows lock retry, flag wording); the pilot artifacts and review sheets are byte-identical after them, and
   `summarize` output on the pilot is unchanged except `generated_at_utc`.
 - Changed files: `FILES.txt` in this folder (`git diff --name-status` against `origin/main`).
 
@@ -76,8 +77,8 @@ from `uv.lock`, which is unchanged from `origin/main`. Offline tests also pass o
 
 ## 4. Offline test receipt and fixtures
 
-`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 190 passed
-(97 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 190 passed.
+`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 197 passed
+(104 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 197 passed.
 
 Fixtures: `tests/fixtures/*.jsonl` replayed through the SDK's own `ResearchEvent` model
 (`complete-events`, `complete-ordered-sources`, `complete-no-cited-pages`,
@@ -166,6 +167,9 @@ in the table in `../README.md` is exercised offline through `run-one` except
 - Spreadsheet round trips of the acceptance sheets (semicolon or BOM CSVs are read through the
   trace path's `read_sheet`, tested there, not with these sheets).
 - Whether the service cancels a task after a client timeout.
+- The Windows `msvcrt` lock path (its retry policy is unit-tested with injected errors only).
+- The committed pilot run predates `implementation_sha256`, so `run-one` refuses any new attempt
+  in it (by design); new runs record it.
 
 ## Article vs implementation
 

@@ -13,6 +13,8 @@ Nothing here retries. An existing attempt is never reused or overwritten.
 
 from __future__ import annotations
 
+import errno
+import hashlib
 import json
 import os
 import platform
@@ -21,6 +23,7 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
+from time import monotonic
 from typing import Any, Callable, Dict, Iterator, List, Optional, TextIO, Tuple
 
 import tabstack
@@ -73,6 +76,7 @@ ATTEMPT_COLUMNS = (
     "category",
     "dataset_version",
     "dataset_sha256",
+    "implementation_sha256",
     "implementation_commit",
     "implementation_dirty",
     "python_version",
@@ -131,6 +135,78 @@ def _implementation_dirty() -> Optional[bool]:
         return None
 
 
+IMPLEMENTATION_ROOT_FILES = ("pyproject.toml", "uv.lock")
+
+
+class ImplementationUnknown(RuntimeError):
+    """The implementation files could not be read, so no identity can be compared."""
+
+
+def implementation_identity(
+    package_dir: Path = PACKAGE_DIR, project_root: Optional[Path] = None
+) -> Tuple[str, List[str]]:
+    """sha256 over the content of the implementation only: every file in the installed package
+    (no __pycache__, no .pyc) plus pyproject.toml and uv.lock when they sit at the project root.
+    Returns (hex digest, covered paths).
+
+    It is read from disk, so it is the same for the same code whatever HEAD is (a docs or
+    artifacts commit does not change it), it differs for two different uncommitted edits, it
+    covers untracked files under the package, and it needs no git. Raises
+    ImplementationUnknown if a file cannot be read.
+    """
+    root = project_root if project_root is not None else package_dir.parents[1]
+    entries: List[Tuple[str, Path]] = []
+    for path in sorted(package_dir.rglob("*")):
+        if path.is_dir() or "__pycache__" in path.parts or path.suffix in (".pyc", ".pyo"):
+            continue
+        entries.append(((Path(package_dir.name) / path.relative_to(package_dir)).as_posix(), path))
+    if (root / "src" / package_dir.name).resolve() == package_dir.resolve():
+        for name in IMPLEMENTATION_ROOT_FILES:
+            if (root / name).is_file():
+                entries.append((name, root / name))
+    digest = hashlib.sha256()
+    try:
+        for rel, path in sorted(entries):
+            digest.update(rel.encode("utf-8") + b"\0")
+            digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode("ascii") + b"\n")
+    except OSError as exc:
+        raise ImplementationUnknown(f"cannot read implementation file: {exc}") from exc
+    return digest.hexdigest(), [rel for rel, _ in sorted(entries)]
+
+
+class LedgerLockError(RuntimeError):
+    """The run directory's ledger lock could not be taken."""
+
+
+LOCK_CONTENTION_ERRNOS = frozenset(
+    {errno.EACCES, errno.EDEADLK, getattr(errno, "EDEADLOCK", errno.EDEADLK)}
+)
+LOCK_MAX_WAIT_SECONDS = 60.0
+
+
+def lock_with_retry(
+    try_lock: Callable[[], None],
+    max_wait: float = LOCK_MAX_WAIT_SECONDS,
+    clock: Callable[[], float] = monotonic,
+) -> None:
+    """Call `try_lock` until it succeeds. Retries only on lock contention (EACCES/EDEADLK, which
+    msvcrt's LK_LOCK raises after its own ~10 s of retries), for at most `max_wait` seconds in
+    total; any other OSError fails at once."""
+    started = clock()
+    while True:
+        try:
+            try_lock()
+            return
+        except OSError as exc:
+            if exc.errno not in LOCK_CONTENTION_ERRNOS:
+                raise LedgerLockError(f"cannot lock the run ledger: {exc}") from exc
+            if clock() - started >= max_wait:
+                raise LedgerLockError(
+                    f"run ledger still locked by another run-one after {max_wait:g}s; "
+                    "wait for it to finish and retry"
+                ) from exc
+
+
 LOCK_NAME = ".attempts.lock"
 
 
@@ -148,12 +224,9 @@ def ledger_lock(run_dir: Path) -> Iterator[None]:
             import msvcrt
 
             fh.seek(0)
-            while True:
-                try:
-                    msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # pyright: ignore
-                    break
-                except OSError:
-                    continue
+            lock_with_retry(
+                lambda: msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # pyright: ignore
+            )
             try:
                 yield
             finally:
@@ -277,6 +350,11 @@ def run_one(
     config = _config(
         ds, freeze, mode, nocache, fetch_timeout, silence_timeout, deadline, pilot_only, synthetic
     )
+    try:
+        impl_sha, impl_paths = implementation_identity()
+    except ImplementationUnknown as exc:
+        raise RunRefused(f"cannot identify the implementation, so nothing was sent: {exc}") from exc
+    # Provenance only; the comparison uses impl_sha. None means git was unavailable or failed.
     commit, dirty = _git_commit(), _implementation_dirty()
     with ledger_lock(run_dir):
         manifest, attempts, attempt_id, answer_dir = _reserve_attempt(
@@ -285,6 +363,8 @@ def run_one(
             freeze_path,
             freeze,
             config,
+            impl_sha,
+            impl_paths,
             commit,
             dirty,
             question_id,
@@ -301,6 +381,7 @@ def run_one(
         category=question["category"],
         dataset_version=freeze["dataset_version"],
         dataset_sha256=ds.sha256,
+        implementation_sha256=impl_sha,
         implementation_commit=commit,
         implementation_dirty=dirty,
         python_version=platform.python_version(),
@@ -374,6 +455,8 @@ def _reserve_attempt(
     freeze_path: Optional[Path],
     freeze: Dict[str, Any],
     config: Dict[str, Any],
+    impl_sha: str,
+    impl_paths: List[str],
     commit: Optional[str],
     dirty: Optional[bool],
     question_id: str,
@@ -390,12 +473,19 @@ def _reserve_attempt(
                 f"{run_dir} was started with a different configuration ({', '.join(changed)}); "
                 "start a new run directory"
             )
-        recorded = (manifest.get("implementation_commit"), manifest.get("implementation_dirty"))
-        if recorded != (commit, dirty):
+        recorded = manifest.get("implementation_sha256")
+        if recorded is None:
             raise RunRefused(
-                f"{run_dir} was started at implementation commit {recorded[0]} "
-                f"(dirty={recorded[1]}); this checkout is {commit} (dirty={dirty}). Every attempt "
-                "in a run must use the same implementation; start a new run directory"
+                f"{run_dir} predates implementation identity (no implementation_sha256 in its "
+                "manifest), so a new attempt cannot be shown to use the same code; start a new "
+                "run directory"
+            )
+        if recorded != impl_sha:
+            raise RunRefused(
+                f"{run_dir} was started with implementation sha256 {recorded[:12]}... "
+                f"(commit {manifest.get('implementation_commit')}); this checkout's "
+                f"implementation is {impl_sha[:12]}... (commit {commit}, dirty={dirty}). Every "
+                "attempt in a run must use the same implementation; start a new run directory"
             )
     else:
         manifest = {
@@ -406,6 +496,8 @@ def _reserve_attempt(
             "freeze_sha256": file_sha256(freeze_path or freeze_path_for(dataset_path)),
             "intended_question_ids": list(freeze["question_ids"]),
             "config": config,
+            "implementation_sha256": impl_sha,
+            "implementation_paths": impl_paths,
             "implementation_commit": commit,
             "implementation_dirty": dirty,
             "python_version": platform.python_version(),
@@ -487,6 +579,11 @@ def _finish_record(record: Dict[str, Any], answer_dir: Path, rel: str, code: int
         record["source_urls_in_order"] = []
     if record["first_event_ms"] is None:
         missing.append("first_event_ms not measured (no event arrived)")
+    if record.get("implementation_commit") is None or record.get("implementation_dirty") is None:
+        missing.append(
+            "implementation_commit/implementation_dirty unavailable (git failed, timed out, or "
+            "this is not a checkout); implementation_sha256 still identifies the code"
+        )
     missing.append("usage unavailable")
     record["review_status"] = "unreviewed" if status == "complete" else "not_applicable"
     record["missing_data"] = missing

@@ -52,8 +52,9 @@ uv run cited-research \
 ```
 
 Flags: `--mode fast|balanced` (default `fast`; `balanced` needs a paid plan), `--nocache` to
-bypass the content cache, `--fetch-timeout SECONDS`, `--silence-timeout SECONDS` (stop waiting
-if no event arrives for that long; off by default), `--quiet`.
+bypass the content cache, `--fetch-timeout SECONDS` (per-page, a whole number greater than 0),
+`--silence-timeout SECONDS` (stop waiting if no event arrives for that long; finite, greater than
+0, off by default), `--quiet`.
 
 Terminal output from the committed trace run (2026-09-29):
 

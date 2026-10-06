@@ -21,7 +21,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--nocache", action="store_true", help="Bypass the content cache; force fresh retrieval."
     )
-    p.add_argument("--fetch-timeout", type=_positive_int, default=None, metavar="SECONDS")
+    p.add_argument(
+        "--fetch-timeout",
+        type=_positive_int,
+        default=None,
+        metavar="SECONDS",
+        help="Per-page fetch timeout: a whole number of seconds greater than 0.",
+    )
     p.add_argument(
         "--silence-timeout",
         type=_positive_float,

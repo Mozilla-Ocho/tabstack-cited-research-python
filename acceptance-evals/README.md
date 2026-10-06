@@ -48,11 +48,15 @@ uv run cited-research-accept summarize --run acceptance-evals/runs/20261006-pilo
 `run-one` refuses, before any request, when the dataset has no freeze record, its sha256 no
 longer matches the freeze, any row is `pending`, evidence is older than the freeze's
 `max_evidence_age_days` (default 30), the run directory was started with a different
-configuration or a different implementation commit or dirty state, or the question already has
-an attempt in the run. Each attempt records the commit of the checkout that ran it. Parallel
+configuration or a different implementation, or the question already has an attempt in the
+run. The implementation is identified by `implementation_sha256`, a hash of the content of the
+package files, `pyproject.toml`, and `uv.lock` as they are on disk, so a commit that touches only
+docs or run artifacts does not change it, while any uncommitted code edit does. Each attempt
+also records the HEAD commit and a dirty flag for provenance (null if git is unavailable). Parallel
 `run-one` processes on one run directory take turns on an OS file lock (`.attempts.lock`) for
-every ledger update, so no attempt record is lost. `--silence-timeout`, `--deadline`, and
-`--fetch-timeout` must be finite and greater than 0. `--another-attempt` records
+every ledger update, so no attempt record is lost; on Windows a held lock is waited on for at
+most 60 s. `--silence-timeout` and `--deadline` must be finite numbers of seconds greater than 0;
+`--fetch-timeout` must be a whole number of seconds greater than 0. `--another-attempt` records
 a new, separate attempt (`Q05-a2`); nothing is ever reused or overwritten.
 
 ### Evidence expiry
