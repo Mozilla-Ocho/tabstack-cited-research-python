@@ -249,31 +249,39 @@ def consume_trace(
     appended to `records` as they arrive so every exit path can still write the timeline.
     """
     final_event: Any = None
+    # One clock (perf_counter, the same one pump.started uses) decides whether the deadline has
+    # passed. queue.get waits on a different clock, so an Empty from a wait that was capped by
+    # the remaining deadline counts as a deadline hit, never as silence.
     deadline_at = pump.started + deadline if deadline is not None else None
+    deadline_text = (
+        f"overall deadline of {deadline:g}s elapsed (client-side deadline)"
+        if (deadline is not None)
+        else ""
+    )
     while True:
         timeout = post_terminal_grace if final_event is not None else silence_timeout
+        capped_by_deadline = False
         if final_event is None and deadline_at is not None:
             remaining = deadline_at - perf_counter()
             if remaining <= 0:
-                raise DeadlineExceededError(
-                    f"overall deadline of {deadline:g}s elapsed (client-side deadline)"
-                )
-            timeout = remaining if timeout is None else min(timeout, remaining)
+                raise DeadlineExceededError(deadline_text)
+            if timeout is None or remaining <= timeout:
+                timeout = remaining
+                capped_by_deadline = True
         try:
             kind, payload, elapsed_ms = pump.get(timeout)
         except queue.Empty:
-            if final_event is None and deadline_at is not None and perf_counter() >= deadline_at:
-                raise DeadlineExceededError(
-                    f"overall deadline of {deadline:g}s elapsed (client-side deadline)"
-                ) from None
+            if final_event is None and capped_by_deadline:
+                raise DeadlineExceededError(deadline_text) from None
             if final_event is not None:
                 manifest.stream_closed_after_terminal = False
                 manifest.caveats.append(
                     f"stream still open {post_terminal_grace:g}s after complete; closed locally"
                 )
                 return final_event
+            waited = f"{silence_timeout:g}s" if silence_timeout is not None else "the wait"
             raise SilenceTimeoutError(
-                f"no event for {silence_timeout:g}s (client-side silence timeout)"
+                f"no event for {waited} (client-side silence timeout)"
             ) from None
 
         if kind == "end":

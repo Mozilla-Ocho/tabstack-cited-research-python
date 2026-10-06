@@ -209,5 +209,33 @@ def main(argv: Optional[List[str]] = None) -> int:
     return 0
 
 
+def parallel_worker(dataset: str, run: str, question: str, count: int, start: Any) -> None:
+    """Record `count` attempts for `question` in `run`; used by the two-process lock test.
+
+    Each ledger read sleeps briefly before returning, widening the read-modify-write window so a
+    missing lock loses records reliably instead of by chance."""
+    import time
+
+    import cited_research.accept.run as run_mod
+
+    real_read = run_mod.read_attempts
+
+    def slow_read(run_dir: Path) -> List[Dict[str, Any]]:
+        rows = real_read(run_dir)
+        time.sleep(0.05)
+        return rows
+
+    run_mod.read_attempts = slow_read
+    start.wait(30)
+    for _ in range(count):
+        attempt(
+            Path(dataset),
+            Path(run),
+            question,
+            fixture_client("complete-events.jsonl"),
+            another=True,
+        )
+
+
 if __name__ == "__main__":
     raise SystemExit(main())

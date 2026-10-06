@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import shlex
 import sys
@@ -20,7 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--nocache", action="store_true", help="Bypass the content cache; force fresh retrieval."
     )
-    p.add_argument("--fetch-timeout", type=int, default=None, metavar="SECONDS")
+    p.add_argument("--fetch-timeout", type=_positive_int, default=None, metavar="SECONDS")
     p.add_argument(
         "--silence-timeout",
         type=_positive_float,
@@ -40,9 +41,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _positive_float(text: str) -> float:
-    value = float(text)
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {text!r}") from None
+    if not math.isfinite(value) or value <= 0:
+        raise argparse.ArgumentTypeError("must be greater than 0 and finite")
+    return value
+
+
+def _positive_int(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a whole number: {text!r}") from None
     if value <= 0:
-        raise argparse.ArgumentTypeError("must be greater than 0")
+        raise argparse.ArgumentTypeError("must be a whole number greater than 0")
     return value
 
 

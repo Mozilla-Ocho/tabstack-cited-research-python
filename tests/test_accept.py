@@ -953,3 +953,136 @@ def test_more_private_destinations_are_refused(url: str, issue: str) -> None:
     from cited_research.urls import check_public_url
 
     assert check_public_url(url) == (False, issue)
+
+
+# --- review fixes, round 2 (PR #3 review) -----------------------------------------------------
+
+
+@pytest.mark.parametrize("silence", [None, 200.0])
+def test_capped_wait_that_returns_early_is_a_deadline_hit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, silence: Any
+) -> None:
+    """queue.get and perf_counter use different clocks; on coarse clocks an Empty can come back
+    before perf_counter says the deadline passed. That must still be deadline_exceeded."""
+    import queue as queue_mod
+
+    import cited_research.tabstack_runner as runner
+    from cited_research.tabstack_runner import run_research
+
+    release = threading.Event()
+
+    def stalls() -> Iterator[Any]:
+        release.wait(10)
+        return iter(())
+
+    def early_empty(self: Any, timeout: Any) -> Any:
+        raise queue_mod.Empty  # returns "too early", before the deadline by perf_counter
+
+    monkeypatch.setattr(runner.EventPump, "get", early_empty)
+    client = ZeroRetryFake(lambda: stalls())
+    try:
+        code = run_research(
+            "q",
+            "fast",
+            True,
+            None,
+            tmp_path,
+            quiet=True,
+            client_factory=lambda: client,  # pyright: ignore[reportArgumentType]
+            silence_timeout=silence,
+            deadline=100.0,
+        )
+    finally:
+        release.set()
+    m = json.loads((tmp_path / "run-manifest.json").read_text())
+    assert (code, m["terminal_status"]) == (12, "deadline_exceeded")
+    assert "None" not in m["error"]
+
+
+@pytest.mark.parametrize(
+    "flag, value",
+    [
+        ("--deadline", "nan"),
+        ("--deadline", "inf"),
+        ("--deadline", "-inf"),
+        ("--deadline", "0"),
+        ("--silence-timeout", "nan"),
+        ("--silence-timeout", "inf"),
+        ("--fetch-timeout", "0"),
+        ("--fetch-timeout", "-5"),
+        ("--fetch-timeout", "nan"),
+    ],
+)
+def test_run_one_rejects_non_finite_or_non_positive_flags(
+    tmp_path: Path, flag: str, value: str, capsys
+) -> None:
+    argv = ["run-one", "--dataset", str(PILOT), "--question", "Q05", "--run", str(tmp_path / "r")]
+    with pytest.raises(SystemExit):
+        cli.main([*argv, f"{flag}={value}"])
+    err = capsys.readouterr().err
+    assert "greater than 0" in err or "not a whole number" in err
+    assert not (tmp_path / "r").exists()
+
+
+@pytest.mark.parametrize("flag, value", [("--silence-timeout", "nan"), ("--fetch-timeout", "0")])
+def test_trace_cli_rejects_the_same_flags(flag: str, value: str, capsys) -> None:
+    from cited_research.cli import main as trace_main
+
+    with pytest.raises(SystemExit):
+        trace_main(["--query", "q", "--output", "x", flag, value])
+    assert "greater than 0" in capsys.readouterr().err
+
+
+def test_max_evidence_age_must_be_positive(capsys) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["validate", "--dataset", str(CANDIDATE), "--max-evidence-age-days", "-1"])
+    assert "greater than 0" in capsys.readouterr().err
+
+
+def test_implementation_is_recorded_per_attempt_and_must_not_change(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    run = tmp_path / "run"
+    monkeypatch.setattr(run_mod, "_git_commit", lambda: "a" * 40)
+    monkeypatch.setattr(run_mod, "_implementation_dirty", lambda: False)
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    assert _attempts(run)[0]["implementation_commit"] == "a" * 40
+    monkeypatch.setattr(run_mod, "_git_commit", lambda: "b" * 40)
+    with pytest.raises(RunRefused, match="same implementation"):
+        attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    monkeypatch.setattr(run_mod, "_git_commit", lambda: "a" * 40)
+    monkeypatch.setattr(run_mod, "_implementation_dirty", lambda: True)
+    with pytest.raises(RunRefused, match="dirty=False"):
+        attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    assert len(_attempts(run)) == 1
+    assert not (run / "answers" / "Q02-a1").exists()
+    monkeypatch.setattr(run_mod, "_implementation_dirty", lambda: False)
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    assert [a["implementation_commit"] for a in _attempts(run)] == ["a" * 40, "a" * 40]
+
+
+def test_two_processes_on_one_run_lose_no_attempts(tmp_path: Path, synth_dataset: Path) -> None:
+    import multiprocessing
+
+    from acceptance_synth import parallel_worker
+
+    run = tmp_path / "run"
+    ctx = multiprocessing.get_context("spawn")
+    start = ctx.Event()
+    procs = [
+        ctx.Process(target=parallel_worker, args=(str(synth_dataset), str(run), q, 4, start))
+        for q in ("Q01", "Q02")
+    ]
+    for p in procs:
+        p.start()
+    start.set()
+    for p in procs:
+        p.join(120)
+        assert p.exitcode == 0
+    attempts = _attempts(run)
+    ids = sorted(a["attempt_id"] for a in attempts)
+    assert ids == sorted([f"Q01-a{i}" for i in range(1, 5)] + [f"Q02-a{i}" for i in range(1, 5)])
+    assert all(a["terminal_status"] == "complete" for a in attempts)
+    assert sorted(p.name for p in (run / "answers").iterdir()) == ids

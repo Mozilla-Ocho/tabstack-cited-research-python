@@ -19,8 +19,9 @@ import platform
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TextIO
+from typing import Any, Callable, Dict, Iterator, List, Optional, TextIO, Tuple
 
 import tabstack
 
@@ -128,6 +129,44 @@ def _implementation_dirty() -> Optional[bool]:
         return bool(out.strip())
     except Exception:
         return None
+
+
+LOCK_NAME = ".attempts.lock"
+
+
+@contextmanager
+def ledger_lock(run_dir: Path) -> Iterator[None]:
+    """Exclusive lock around a read-modify-write of attempts.jsonl (and the run manifest).
+
+    An OS-level lock on a sidecar file (fcntl.flock on POSIX, msvcrt.locking on Windows), so a
+    crashed process never leaves a stale lock. Parallel run-one processes on one run directory
+    take turns; nothing waits on the network while holding it.
+    """
+    run_dir.mkdir(parents=True, exist_ok=True)
+    with (run_dir / LOCK_NAME).open("a+b") as fh:
+        if sys.platform == "win32":  # pragma: no cover - exercised on Windows only
+            import msvcrt
+
+            fh.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # pyright: ignore
+                    break
+                except OSError:
+                    continue
+            try:
+                yield
+            finally:
+                fh.seek(0)
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)  # pyright: ignore
+        else:
+            import fcntl
+
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
 def read_attempts(run_dir: Path) -> List[Dict[str, Any]]:
@@ -238,48 +277,19 @@ def run_one(
     config = _config(
         ds, freeze, mode, nocache, fetch_timeout, silence_timeout, deadline, pilot_only, synthetic
     )
-    run_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = run_dir / "manifest.json"
-    if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        changed = [k for k, v in config.items() if manifest.get("config", {}).get(k) != v]
-        if changed:
-            raise RunRefused(
-                f"{run_dir} was started with a different configuration ({', '.join(changed)}); "
-                "start a new run directory"
-            )
-    else:
-        manifest = {
-            "schema": RUN_SCHEMA,
-            "run_id": run_dir.name,
-            "created_at_utc": utc_now_iso(),
-            "dataset_path": os.path.relpath(dataset_path.resolve(), run_dir.resolve()),
-            "freeze_sha256": file_sha256(freeze_path or freeze_path_for(dataset_path)),
-            "intended_question_ids": list(freeze["question_ids"]),
-            "config": config,
-            "implementation_commit": _git_commit(),
-            "implementation_dirty": _implementation_dirty(),
-            "python_version": platform.python_version(),
-            "tabstack_version": tabstack.__version__,
-            "os": f"{platform.system()} {platform.release()} {platform.machine()}",
-            "notes": [
-                "pilot_only and synthetic attempts are excluded from live scored totals.",
-                "A client timeout ends the wait; it does not establish provider cancellation.",
-            ],
-        }
-        write_text_atomic(manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-
-    attempts = read_attempts(run_dir)
-    prior = [a["attempt_id"] for a in attempts if a.get("question_id") == question_id]
-    if prior and not another_attempt:
-        raise RunRefused(
-            f"{question_id} already has attempt(s) {', '.join(prior)} in {run_dir}; pass "
-            "--another-attempt to record a new, separate attempt (never an overwrite)"
+    commit, dirty = _git_commit(), _implementation_dirty()
+    with ledger_lock(run_dir):
+        manifest, attempts, attempt_id, answer_dir = _reserve_attempt(
+            run_dir,
+            dataset_path,
+            freeze_path,
+            freeze,
+            config,
+            commit,
+            dirty,
+            question_id,
+            another_attempt,
         )
-    attempt_id = next_attempt_id(run_dir, question_id, attempts)
-    answer_dir = run_dir / "answers" / attempt_id
-    answer_dir.mkdir(parents=True, exist_ok=False)
-
     query = f"{question['question']}\n\n{freeze['output_instruction']}"
     rel = answer_dir.relative_to(run_dir).as_posix()
     record: Dict[str, Any] = dict.fromkeys(ATTEMPT_COLUMNS)
@@ -291,8 +301,8 @@ def run_one(
         category=question["category"],
         dataset_version=freeze["dataset_version"],
         dataset_sha256=ds.sha256,
-        implementation_commit=manifest.get("implementation_commit"),
-        implementation_dirty=manifest.get("implementation_dirty"),
+        implementation_commit=commit,
+        implementation_dirty=dirty,
         python_version=platform.python_version(),
         tabstack_version=tabstack.__version__,
         mode=mode,
@@ -316,8 +326,10 @@ def run_one(
         review_status="not_applicable",
         missing_data=["process ended before the attempt recorded a terminal state"],
     )
-    # Recorded before the request, so a crash leaves a visible in_progress attempt.
-    write_attempts(run_dir, [*attempts, record])
+    # Recorded before the request, so a crash leaves a visible in_progress attempt. The lock was
+    # released after reserving; re-read so a parallel process's record is never dropped.
+    with ledger_lock(run_dir):
+        write_attempts(run_dir, [*read_attempts(run_dir), record])
 
     kwargs: Dict[str, Any] = {}
     if post_terminal_grace is not None:
@@ -336,11 +348,14 @@ def run_one(
         **kwargs,
     )
     _finish_record(record, answer_dir, rel, code)
-    # Re-read: another process may have appended attempts while this request ran.
-    current = read_attempts(run_dir)
-    if not any(a.get("attempt_id") == attempt_id for a in current):
-        current.append(record)
-    write_attempts(run_dir, [record if a.get("attempt_id") == attempt_id else a for a in current])
+    # Re-read under the lock: another process may have appended attempts while this one ran.
+    with ledger_lock(run_dir):
+        current = read_attempts(run_dir)
+        if not any(a.get("attempt_id") == attempt_id for a in current):
+            current.append(record)
+        write_attempts(
+            run_dir, [record if a.get("attempt_id") == attempt_id else a for a in current]
+        )
     if not quiet:
         stdout.write(
             f"attempt {attempt_id}: {record['terminal_status']} (exit {code}), "
@@ -351,6 +366,77 @@ def run_one(
             stdout.write(f"next: cited-research-accept prepare-review --run {run_dir}\n")
         stdout.flush()
     return code
+
+
+def _reserve_attempt(
+    run_dir: Path,
+    dataset_path: Path,
+    freeze_path: Optional[Path],
+    freeze: Dict[str, Any],
+    config: Dict[str, Any],
+    commit: Optional[str],
+    dirty: Optional[bool],
+    question_id: str,
+    another_attempt: bool,
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]], str, Path]:
+    """Check the run, allocate the next attempt ID, and create its directory. Call under
+    ledger_lock."""
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        changed = [k for k, v in config.items() if manifest.get("config", {}).get(k) != v]
+        if changed:
+            raise RunRefused(
+                f"{run_dir} was started with a different configuration ({', '.join(changed)}); "
+                "start a new run directory"
+            )
+        recorded = (manifest.get("implementation_commit"), manifest.get("implementation_dirty"))
+        if recorded != (commit, dirty):
+            raise RunRefused(
+                f"{run_dir} was started at implementation commit {recorded[0]} "
+                f"(dirty={recorded[1]}); this checkout is {commit} (dirty={dirty}). Every attempt "
+                "in a run must use the same implementation; start a new run directory"
+            )
+    else:
+        manifest = {
+            "schema": RUN_SCHEMA,
+            "run_id": run_dir.name,
+            "created_at_utc": utc_now_iso(),
+            "dataset_path": os.path.relpath(dataset_path.resolve(), run_dir.resolve()),
+            "freeze_sha256": file_sha256(freeze_path or freeze_path_for(dataset_path)),
+            "intended_question_ids": list(freeze["question_ids"]),
+            "config": config,
+            "implementation_commit": commit,
+            "implementation_dirty": dirty,
+            "python_version": platform.python_version(),
+            "tabstack_version": tabstack.__version__,
+            "os": f"{platform.system()} {platform.release()} {platform.machine()}",
+            "notes": [
+                "pilot_only and synthetic attempts are excluded from live scored totals.",
+                "A client timeout ends the wait; it does not establish provider cancellation.",
+            ],
+        }
+        write_text_atomic(manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+
+    attempts = read_attempts(run_dir)
+    prior = [a["attempt_id"] for a in attempts if a.get("question_id") == question_id]
+    answers = run_dir / "answers"
+    if answers.exists():
+        # A directory reserved by a parallel process whose ledger line is not written yet.
+        for d in sorted(answers.iterdir()):
+            m = ATTEMPT_ID.fullmatch(d.name)
+            if m and m.group(1) == question_id and d.name not in prior:
+                prior.append(d.name)
+    if prior and not another_attempt:
+        raise RunRefused(
+            f"{question_id} already has attempt(s) {', '.join(prior)} in {run_dir}; pass "
+            "--another-attempt to record a new, separate attempt (never an overwrite)"
+        )
+    attempt_id = next_attempt_id(run_dir, question_id, attempts)
+    answer_dir = run_dir / "answers" / attempt_id
+    answer_dir.mkdir(parents=True, exist_ok=False)
+
+    return manifest, attempts, attempt_id, answer_dir
 
 
 def _finish_record(record: Dict[str, Any], answer_dir: Path, rel: str, code: int) -> None:

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -36,9 +37,22 @@ EXIT_NO_KEY = 5
 
 
 def _positive_float(text: str) -> float:
-    value = float(text)
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {text!r}") from None
+    if not math.isfinite(value) or value <= 0:
+        raise argparse.ArgumentTypeError("must be greater than 0 and finite")
+    return value
+
+
+def _positive_int(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a whole number: {text!r}") from None
     if value <= 0:
-        raise argparse.ArgumentTypeError("must be greater than 0")
+        raise argparse.ArgumentTypeError("must be a whole number greater than 0")
     return value
 
 
@@ -63,7 +77,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also apply live-run rules: no pending rows, evidence not stale.",
     )
     v.add_argument(
-        "--max-evidence-age-days", type=int, default=DEFAULT_MAX_EVIDENCE_AGE_DAYS, metavar="DAYS"
+        "--max-evidence-age-days",
+        type=_positive_int,
+        default=DEFAULT_MAX_EVIDENCE_AGE_DAYS,
+        metavar="DAYS",
     )
 
     f = sub.add_parser("freeze", help="Validate with live-run rules, then hash and version.")
@@ -71,7 +88,10 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("--version", required=True, help="Dataset version label, e.g. pilot-q05-v1.")
     f.add_argument("--allow-subset", action="store_true")
     f.add_argument(
-        "--max-evidence-age-days", type=int, default=DEFAULT_MAX_EVIDENCE_AGE_DAYS, metavar="DAYS"
+        "--max-evidence-age-days",
+        type=_positive_int,
+        default=DEFAULT_MAX_EVIDENCE_AGE_DAYS,
+        metavar="DAYS",
     )
 
     r = sub.add_parser("run-one", help="Send one frozen question to Tabstack /research.")
@@ -80,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--run", required=True, type=Path, help="Run directory (created if absent).")
     r.add_argument("--mode", choices=("fast", "balanced"), default="fast")
     r.add_argument("--nocache", action="store_true")
-    r.add_argument("--fetch-timeout", type=int, default=None, metavar="SECONDS")
+    r.add_argument("--fetch-timeout", type=_positive_int, default=None, metavar="SECONDS")
     r.add_argument(
         "--silence-timeout",
         type=_positive_float,
