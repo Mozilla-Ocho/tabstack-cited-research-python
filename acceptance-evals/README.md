@@ -16,24 +16,29 @@ export TABSTACK_API_KEY=...   # read from the environment only; there is no key 
 # 1. Validate offline. The candidate set is valid structure but not runnable: 19 rows pending.
 uv run cited-research-accept validate --dataset acceptance-evals/questions.candidate.jsonl
 
-# 2. Freeze a reviewed set (here, the one-question pilot subset): hash, version, instruction.
+# 2. The committed pilot set is already frozen (pilot-q05-v1); freeze refuses to replace a
+#    freeze record. To run it yourself, copy it to a new file and freeze that copy.
+cp acceptance-evals/pilot/questions.pilot-q05.jsonl acceptance-evals/pilot/questions.my-pilot.jsonl
 uv run cited-research-accept freeze \
-  --dataset acceptance-evals/pilot/questions.pilot-q05.jsonl \
-  --version pilot-q05-v1 \
+  --dataset acceptance-evals/pilot/questions.my-pilot.jsonl \
+  --version my-pilot-v1 \
   --allow-subset
 
 # 3. The only command that calls the API: one frozen question, one request, no retries.
+#    Use a new run directory; the committed pilot run already holds attempt Q05-a1.
 uv run cited-research-accept run-one \
-  --dataset acceptance-evals/pilot/questions.pilot-q05.jsonl \
+  --dataset acceptance-evals/pilot/questions.my-pilot.jsonl \
   --question Q05 \
-  --run acceptance-evals/runs/20261006-pilot-q05 \
+  --run acceptance-evals/runs/my-pilot-q05 \
   --mode fast \
   --nocache \
   --silence-timeout 120 \
   --deadline 300 \
   --pilot
 
-# 4. Blank review sheets (re-running keeps every existing row; --force discards them).
+# 4. Blank review sheets (re-running appends rows for new attempts and leaves existing rows
+#    byte for byte; --force discards them). Shown on the committed, already-reviewed pilot run;
+#    use your own --run directory after step 3.
 uv run cited-research-accept prepare-review --run acceptance-evals/runs/20261006-pilot-q05
 
 # 5. Summarize (offline). Writes summary.json; --json prints it.
@@ -45,6 +50,17 @@ longer matches the freeze, any row is `pending`, evidence is older than the free
 `max_evidence_age_days` (default 30), the run directory was started with a different
 configuration, or the question already has an attempt in the run. `--another-attempt` records
 a new, separate attempt (`Q05-a2`); nothing is ever reused or overwritten.
+
+### Evidence expiry
+
+The Q05 reference passage was retrieved 2026-10-06T17:37:54Z, and freeze records allow evidence
+up to 30 days old. After 2026-11-05T17:37:54Z, `run-one` on the committed pilot set, or on a copy
+of it, refuses with "evidence is older than 30 days", and `freeze` refuses the copy too. To run
+it after that date: re-open the reference page, re-review the passage (update `passage`,
+`retrieved_at_utc`, and `date_or_version` if anything changed), save the result as a new dataset
+file with a new version label, and freeze that file. Do not edit a frozen file in place: its
+sha256 no longer matches its freeze record, and `run-one`, `prepare-review`, and `summarize`
+all refuse it.
 
 ## Files
 

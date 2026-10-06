@@ -11,6 +11,9 @@ recorded date. Nothing here measures typical latency, cost, accuracy, or reliabi
   `ede0ac24c6d84df97570512e2da70b4ae0fa3517`. Not merged; no PR opened.
 - Implementation commit used for the live pilot: `452aa44c63d110e85e0c71f3118b8a81ca80a293`
   (`implementation_dirty: false` in the pilot manifest). Two later commits change tests only.
+  Code-review fixes landed afterwards in `ef2632a` (summarize, prepare-review, ledger write,
+  URL checks); the pilot artifacts and review sheets are byte-identical after them, and
+  `summarize` output on the pilot is unchanged except `generated_at_utc`.
 - Changed files: `FILES.txt` in this folder (`git diff --name-status` against `origin/main`).
 
 ## 2. Install and commands, as tested
@@ -38,9 +41,32 @@ uv run cited-research-accept prepare-review --run acceptance-evals/runs/20261006
 uv run cited-research-accept summarize --run acceptance-evals/runs/20261006-pilot-q05
 ```
 
-The freeze record is committed, so a fresh clone skips `freeze` (it refuses to replace an
-existing freeze record). A fresh-clone run of the same `run-one` command into the committed run
-directory is refused because Q05 already has an attempt there; use a new `--run` directory.
+Those are the commands as run for the committed pilot. A reader cannot repeat the last four
+verbatim: the pilot set's freeze record is committed (`freeze` refuses to replace it) and the
+committed run already holds `Q05-a1`. The READMEs publish this sequence instead, checked on
+2026-10-06 in a scratch clone with a dummy key and `TABSTACK_BASE_URL=http://127.0.0.1:9`.
+`freeze` exited 0, and `run-one` got past every pre-request check, then ended
+`transport_error` (exit 4) at the dead local port, so no request left the machine:
+
+```bash
+cp acceptance-evals/pilot/questions.pilot-q05.jsonl acceptance-evals/pilot/questions.my-pilot.jsonl
+uv run cited-research-accept freeze \
+  --dataset acceptance-evals/pilot/questions.my-pilot.jsonl \
+  --version my-pilot-v1 \
+  --allow-subset
+uv run cited-research-accept run-one \
+  --dataset acceptance-evals/pilot/questions.my-pilot.jsonl \
+  --question Q05 \
+  --run acceptance-evals/runs/my-pilot-q05 \
+  --mode fast \
+  --nocache \
+  --silence-timeout 120 \
+  --deadline 300 \
+  --pilot
+```
+
+The Q05 evidence expires after 2026-11-05T17:37:54Z (30 days from retrieval). After that date,
+re-review the passage, save a new dataset file, and freeze it.
 
 ## 3. Versions and lockfile
 
@@ -49,8 +75,8 @@ from `uv.lock`, which is unchanged from `origin/main`. Offline tests also pass o
 
 ## 4. Offline test receipt and fixtures
 
-`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 158 passed
-(65 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 158 passed.
+`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 174 passed
+(81 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 174 passed.
 
 Fixtures: `tests/fixtures/*.jsonl` replayed through the SDK's own `ResearchEvent` model
 (`complete-events`, `complete-ordered-sources`, `complete-no-cited-pages`,

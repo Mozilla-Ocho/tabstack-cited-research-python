@@ -28,3 +28,14 @@ Adjacent context on the same page (for reviewers; not part of the frozen passage
   Request: "POST https://ollama.com/api/web_search"
   "max_results (integer, optional): maximum results to return (default 5, max 10)"
   Web fetch API: "Fetches a single web page by URL and returns its content."
+
+Web fetch API > Response, from the same fetch (same body, sha256 b1012611...; extracted
+2026-10-06 from the saved copy, no new request), rendered text as above:
+
+  Returns an object containing:
+  title (string): the title of the web page
+  content (string): the main content of the web page
+  links (array): array of links found on the page
+
+The Q05 claim review (C04a, C04b) rests on the "content (string): the main content of the web
+page" line.

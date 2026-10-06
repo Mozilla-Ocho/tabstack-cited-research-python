@@ -219,14 +219,24 @@ summary that keeps failures, blank or `U` scores, and missing usage visible.
 
 ```bash
 uv run cited-research-accept validate --dataset acceptance-evals/questions.candidate.jsonl
+cp acceptance-evals/pilot/questions.pilot-q05.jsonl acceptance-evals/pilot/questions.my-pilot.jsonl
+uv run cited-research-accept freeze \
+  --dataset acceptance-evals/pilot/questions.my-pilot.jsonl --version my-pilot-v1 --allow-subset
 uv run cited-research-accept run-one \
-  --dataset acceptance-evals/pilot/questions.pilot-q05.jsonl \
+  --dataset acceptance-evals/pilot/questions.my-pilot.jsonl \
   --question Q05 \
-  --run acceptance-evals/runs/20261006-pilot-q05 \
+  --run acceptance-evals/runs/my-pilot-q05 \
   --mode fast --nocache --silence-timeout 120 --deadline 300 --pilot
-uv run cited-research-accept prepare-review --run acceptance-evals/runs/20261006-pilot-q05
-uv run cited-research-accept summarize --run acceptance-evals/runs/20261006-pilot-q05
+uv run cited-research-accept prepare-review --run acceptance-evals/runs/my-pilot-q05
+uv run cited-research-accept summarize --run acceptance-evals/runs/my-pilot-q05
 ```
+
+The committed pilot set is already frozen (`pilot-q05-v1`) and the committed run
+`acceptance-evals/runs/20261006-pilot-q05/` already holds attempt `Q05-a1`, so run your own copy
+into a new directory as above. Point `prepare-review` and `summarize` at
+`acceptance-evals/runs/20261006-pilot-q05` to inspect the committed, reviewed pilot. Its evidence
+expires after 2026-11-05T17:37:54Z (30 days from retrieval); after that, re-review the passage,
+save a new dataset file, and freeze it (see [`acceptance-evals/README.md`](acceptance-evals/README.md)).
 
 Only `run-one` calls the API, once per invocation, with SDK retries off. 19 of the 20 candidate
 questions are still `pending`, so only the one-question pilot set is frozen and runnable. One
