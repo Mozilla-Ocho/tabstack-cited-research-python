@@ -1,3 +1,4 @@
+M	.gitignore
 M	README.md
 A	acceptance-evals/README.md
 A	acceptance-evals/attempts-template.csv
@@ -85,6 +86,7 @@ A	src/cited_research/accept/dataset.py
 A	src/cited_research/accept/reviews.py
 A	src/cited_research/accept/run.py
 A	src/cited_research/accept/summary.py
+M	src/cited_research/cli.py
 M	src/cited_research/models.py
 M	src/cited_research/tabstack_runner.py
 M	src/cited_research/urls.py
