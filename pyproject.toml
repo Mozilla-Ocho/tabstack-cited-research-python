@@ -1,7 +1,7 @@
 [project]
 name = "cited-research"
 version = "0.1.0"
-description = "One Tabstack /research call in Python: streamed progress, final Markdown report, machine-readable cited sources. Plus a pre-registered evaluation harness."
+description = "One Tabstack /research call in Python: streamed progress, final Markdown report, machine-readable cited sources. Plus a pre-registered evaluation harness and a workflow acceptance kit."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
@@ -14,6 +14,7 @@ dependencies = [
 cited-research = "cited_research.cli:main"
 cited-research-eval = "cited_research.harness.cli:main"
 cited-research-review = "cited_research.review:main"
+cited-research-accept = "cited_research.accept.cli:main"
 
 [dependency-groups]
 dev = [
