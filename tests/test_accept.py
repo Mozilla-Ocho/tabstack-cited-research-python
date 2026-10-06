@@ -804,3 +804,22 @@ def test_committed_synthetic_example_summary() -> None:
     assert s["provenance"] == {"live_scored": 0, "pilot": 0, "synthetic": 6}
     assert s["scopes"]["synthetic"]["responses"]["accepted"] == 1
     assert all(a["synthetic"] for a in read_attempts(run))
+
+
+def test_a_crash_mid_request_leaves_a_visible_attempt(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    def dies(**_: Any) -> int:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(run_mod, "run_research", dies)
+    run = tmp_path / "run"
+    with pytest.raises(KeyboardInterrupt):
+        attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (a,) = _attempts(run)
+    assert a["terminal_status"] == "in_progress" and a["failure_class"] == "no_terminal_record"
+    b = summarize(run)["scopes"]["synthetic"]
+    assert b["attempts"] == 1 and b["by_terminal_status"] == {"in_progress": 1}
+    assert b["accepted_over_attempts"]["denominator"] == 1
