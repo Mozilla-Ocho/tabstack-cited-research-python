@@ -2099,3 +2099,25 @@ def test_cleanup_never_removes_a_reservation_with_real_content(tmp_path: Path) -
     (d / "question.txt").write_text("q\n")
     _remove_if_empty(d)
     assert (d / "question.txt").exists() and (d / ".DS_Store").exists()
+
+
+def test_cleanup_spares_a_file_that_appears_after_the_emptiness_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    d = tmp_path / "Q01-a1"
+    d.mkdir()
+    (d / ".DS_Store").write_bytes(b"\0")
+    real_check = run_mod.is_effectively_empty
+
+    def check_then_race(path: Path) -> bool:
+        result = real_check(path)
+        (path / "report.md").write_text("written by another process\n")  # after the check
+        return result
+
+    monkeypatch.setattr(run_mod, "is_effectively_empty", check_then_race)
+    run_mod._remove_if_empty(d)
+    assert (d / "report.md").read_text() == "written by another process\n"
+    assert d.is_dir(), "rmdir failed safely because the directory was not empty"
+    assert not (d / ".DS_Store").exists(), "only the dotfile was removed"

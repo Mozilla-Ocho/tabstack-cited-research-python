@@ -94,8 +94,8 @@ from `uv.lock`, which is unchanged from `origin/main`. Offline tests also pass o
 
 ## 4. Offline test receipt and fixtures
 
-`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 254 passed
-(161 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 254 passed.
+`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 255 passed
+(162 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 255 passed.
 
 Fixtures: `tests/fixtures/*.jsonl` replayed through the SDK's own `ResearchEvent` model
 (`complete-events`, `complete-ordered-sources`, `complete-no-cited-pages`,

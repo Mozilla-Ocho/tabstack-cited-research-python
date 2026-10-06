@@ -832,7 +832,10 @@ def _remove_if_empty(path: Path) -> None:
         return
     try:
         for e in path.iterdir():
-            e.unlink()
+            # Re-checked per entry: anything that appeared since the check above is left alone,
+            # and rmdir then fails safely because the directory is not empty.
+            if e.name.startswith(".") and e.is_file():
+                e.unlink()
         path.rmdir()
     except OSError:
         pass
