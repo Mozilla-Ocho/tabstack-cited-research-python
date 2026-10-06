@@ -763,7 +763,7 @@ def test_summarize_cli_writes_summary_json(synth_run: Path, capsys) -> None:
 
 SECRET_SHAPES = re.compile(
     r"(sk_(live|test)_[A-Za-z0-9]{8,}|tsk[-_][A-Za-z0-9]{12,}|Bearer\s+[A-Za-z0-9._-]{8,}|"
-    r"Authorization:\s*\S|Cookie:\s*\S|TABSTACK_API_KEY=\S)"
+    r"Authorization:\s*\S|Cookie:\s*\S|TABSTACK_API_KEY=(?!\.\.\.)\S)"
 )
 
 
