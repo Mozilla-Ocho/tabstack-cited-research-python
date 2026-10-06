@@ -21,6 +21,7 @@ from tabstack import Tabstack
 
 from .models import (
     CitedPage,
+    DeadlineExceededError,
     MalformedCompleteError,
     PrematureCloseError,
     ProtocolError,
@@ -74,6 +75,7 @@ EXIT_CODES = {
     "stream_transport_error": 9,
     "malformed_complete": 10,
     "unexpected_error": 11,
+    "deadline_exceeded": 12,
 }
 
 
@@ -195,6 +197,10 @@ class EventPump:
         self._stream: Any = None
         self._thread = threading.Thread(target=self._run, name="research-stream", daemon=True)
 
+    @property
+    def started(self) -> float:
+        return self._started
+
     def _ms(self) -> int:
         return int((perf_counter() - self._started) * 1000)
 
@@ -232,20 +238,34 @@ def consume_trace(
     quiet: bool = False,
     silence_timeout: Optional[float] = None,
     post_terminal_grace: float = POST_TERMINAL_GRACE_SECONDS,
+    deadline: Optional[float] = None,
 ) -> Any:
     """Drive one research stream to a terminal state. Returns the `complete` event.
 
     Raises ResearchTaskError (streamed `error`), PrematureCloseError (stream ended first),
-    SilenceTimeoutError (no event within `silence_timeout`), ProtocolError (a second terminal
-    event), or whatever the SDK raised opening the request. Sanitized records are appended to
-    `records` as they arrive so every exit path can still write the timeline.
+    SilenceTimeoutError (no event within `silence_timeout`), DeadlineExceededError (`deadline`
+    seconds elapsed since the request started, however healthy the stream), ProtocolError (a
+    second terminal event), or whatever the SDK raised opening the request. Sanitized records are
+    appended to `records` as they arrive so every exit path can still write the timeline.
     """
     final_event: Any = None
+    deadline_at = pump.started + deadline if deadline is not None else None
     while True:
         timeout = post_terminal_grace if final_event is not None else silence_timeout
+        if final_event is None and deadline_at is not None:
+            remaining = deadline_at - perf_counter()
+            if remaining <= 0:
+                raise DeadlineExceededError(
+                    f"overall deadline of {deadline:g}s elapsed (client-side deadline)"
+                )
+            timeout = remaining if timeout is None else min(timeout, remaining)
         try:
             kind, payload, elapsed_ms = pump.get(timeout)
         except queue.Empty:
+            if final_event is None and deadline_at is not None and perf_counter() >= deadline_at:
+                raise DeadlineExceededError(
+                    f"overall deadline of {deadline:g}s elapsed (client-side deadline)"
+                ) from None
             if final_event is not None:
                 manifest.stream_closed_after_terminal = False
                 manifest.caveats.append(
@@ -371,6 +391,7 @@ def run_research(
     silence_timeout: Optional[float] = None,
     command: Optional[str] = None,
     post_terminal_grace: float = POST_TERMINAL_GRACE_SECONDS,
+    deadline: Optional[float] = None,
 ) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "question.txt").write_text(scrub_text(query) + "\n", encoding="utf-8")
@@ -387,6 +408,7 @@ def run_research(
         nocache=nocache,
         fetch_timeout_seconds=fetch_timeout,
         silence_timeout_seconds=silence_timeout,
+        deadline_seconds=deadline,
         started_at_utc=utc_now_iso(),
         tabstack_version=tabstack.__version__,
         repository_commit=_git_commit(),
@@ -409,7 +431,14 @@ def run_research(
             pump = EventPump(lambda: client.agent.research(**kwargs), started).start()
             try:
                 final_event = consume_trace(
-                    pump, records, manifest, printer, quiet, silence_timeout, post_terminal_grace
+                    pump,
+                    records,
+                    manifest,
+                    printer,
+                    quiet,
+                    silence_timeout,
+                    post_terminal_grace,
+                    deadline,
                 )
             finally:
                 pump.close()
@@ -423,6 +452,9 @@ def run_research(
         message = f"stream closed early: {exc}"
     except SilenceTimeoutError as exc:
         status = "silence_timeout"
+        message = f"gave up waiting: {exc}. The request may still be running and billed."
+    except DeadlineExceededError as exc:
+        status = "deadline_exceeded"
         message = f"gave up waiting: {exc}. The request may still be running and billed."
     except MalformedCompleteError as exc:
         status = "malformed_complete"
