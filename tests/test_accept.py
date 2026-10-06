@@ -823,3 +823,133 @@ def test_a_crash_mid_request_leaves_a_visible_attempt(
     b = summarize(run)["scopes"]["synthetic"]
     assert b["attempts"] == 1 and b["by_terminal_status"] == {"in_progress": 1}
     assert b["accepted_over_attempts"]["denominator"] == 1
+
+
+# --- review fixes (2026-10-06 code review) ----------------------------------------------------
+
+
+def test_summarize_refuses_an_edited_dataset(synth_run: Path, capsys) -> None:
+    dataset = synth_run.parent / "synthetic-dataset.jsonl"
+    dataset.write_text(dataset.read_text() + "\n", encoding="utf-8")
+    with pytest.raises(SheetError, match="dataset_sha256"):
+        summarize(synth_run)
+    assert cli.main(["summarize", "--run", str(synth_run)]) == 1
+    assert "frozen set was edited" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "sheet, match",
+    [
+        ("coverage.csv", {"attempt_id": "Q01-a1", "element_id": "E1"}),
+        ("claims.csv", {"attempt_id": "Q01-a1", "claim_id": "C01"}),
+        ("decisions.csv", {"attempt_id": "Q01-a1"}),
+        ("usage.csv", {"attempt_id": "Q01-a1"}),
+    ],
+)
+def test_duplicate_review_rows_are_errors(
+    synth_run: Path, sheet: str, match: Dict[str, str]
+) -> None:
+    from cited_research.accept.reviews import SHEETS, sheet_csv
+    from cited_research.review import write_review_sheet
+
+    path = synth_run / "reviews" / sheet
+    rows = read_review_sheet(path)
+    dup = next(r for r in rows if all(r.get(k) == v for k, v in match.items()))
+    write_review_sheet(path, sheet_csv(SHEETS[sheet], [*rows, dict(dup)]))
+    with pytest.raises(SheetError, match="duplicate row"):
+        summarize(synth_run)
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf", "1e999"])
+def test_non_finite_usage_is_refused(synth_run: Path, value: str) -> None:
+    fill(synth_run, "usage.csv", {"attempt_id": "Q01-a1"}, {"usage_value": value})
+    with pytest.raises(SheetError, match="finite non-negative|is not a number"):
+        summarize(synth_run)
+
+
+def test_prepare_review_appends_without_rewriting_existing_bytes(
+    tmp_path: Path, synth_dataset: Path
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-ordered-sources.jsonl"))
+    prepare_review(run)
+    cov = run / "reviews" / "coverage.csv"
+    # A reviewer's spreadsheet: semicolon delimiter, CRLF, no BOM, an extra column, reordered
+    # header, and a cell that _csv_safe would have prefixed.
+    original = (
+        b"attempt_id;run_id;question_id;element_id;criterion;answer_excerpt;score;reason;"
+        b"reviewer;reviewed_at_utc;my_note\r\n"
+        b"Q01-a1;run;Q01;E1;crit;=SUM(A1);2;ok;me;2026-10-06T00:00:00Z;keep me\r\n"
+        b"Q01-a1;run;Q01;E2;crit;;;;;;\r\n"
+    )
+    cov.write_bytes(original)
+    assert prepare_review(run)["coverage.csv"] == (2, 0)
+    assert cov.read_bytes() == original, "nothing added, nothing rewritten"
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    assert prepare_review(run)["coverage.csv"] == (2, 2)
+    after = cov.read_bytes()
+    assert after.startswith(original)
+    added = after[len(original) :].decode("utf-8").split("\r\n")
+    assert added[0].startswith("Q02-a1;run;Q02;E1;") and added[0].endswith(";")
+    assert len([x for x in added if x]) == 2
+
+
+def test_prepare_review_refuses_a_sheet_missing_columns(
+    tmp_path: Path, synth_dataset: Path
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    prepare_review(run)
+    (run / "reviews" / "coverage.csv").write_text("attempt_id,score\nQ01-a1,2\n", encoding="utf-8")
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    with pytest.raises(ValueError, match="has no column"):
+        prepare_review(run)
+    assert (run / "reviews" / "coverage.csv").read_text() == "attempt_id,score\nQ01-a1,2\n"
+
+
+def test_prepare_review_checks_the_hash_before_reading_attempts(
+    tmp_path: Path, synth_dataset: Path, capsys
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    rows = [json.loads(x) for x in synth_dataset.read_text().splitlines()]
+    _write(synth_dataset, [r for r in rows if r["id"] != "Q01"])  # would KeyError in rows
+    assert cli.main(["prepare-review", "--run", str(run)]) == 1
+    assert "does not match the dataset hash" in capsys.readouterr().err
+
+
+def test_final_ledger_write_keeps_attempts_added_during_the_request(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    real = run_mod.run_research
+    run = tmp_path / "run"
+
+    def concurrent(**kw: Any) -> int:
+        # Another process records an attempt while this request is in flight.
+        ledger = run / "attempts.jsonl"
+        ledger.write_text(
+            ledger.read_text() + json.dumps({"attempt_id": "Q02-a1", "question_id": "Q02"}) + "\n"
+        )
+        return real(**kw)
+
+    monkeypatch.setattr(run_mod, "run_research", concurrent)
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    ids = [a["attempt_id"] for a in _attempts(run)]
+    assert ids == ["Q01-a1", "Q02-a1"]
+    assert _attempts(run)[0]["terminal_status"] == "complete"
+
+
+@pytest.mark.parametrize(
+    "url, issue",
+    [
+        ("https://router.home.arpa/", "private_hostname"),
+        ("https://[64:ff9b::a00:1]/", "non_public_ip"),
+        ("https://[64:ff9b::808:808]/", "non_public_ip"),
+    ],
+)
+def test_more_private_destinations_are_refused(url: str, issue: str) -> None:
+    from cited_research.urls import check_public_url
+
+    assert check_public_url(url) == (False, issue)

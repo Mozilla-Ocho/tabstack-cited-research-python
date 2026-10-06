@@ -336,7 +336,11 @@ def run_one(
         **kwargs,
     )
     _finish_record(record, answer_dir, rel, code)
-    write_attempts(run_dir, [*attempts, record])
+    # Re-read: another process may have appended attempts while this request ran.
+    current = read_attempts(run_dir)
+    if not any(a.get("attempt_id") == attempt_id for a in current):
+        current.append(record)
+    write_attempts(run_dir, [record if a.get("attempt_id") == attempt_id else a for a in current])
     if not quiet:
         stdout.write(
             f"attempt {attempt_id}: {record['terminal_status']} (exit {code}), "

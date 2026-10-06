@@ -22,7 +22,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..models import load_cited_pages
 from ..review import _csv_safe, read_sheet, review_rows, write_review_sheet
-from .dataset import load_dataset
+from ..sanitize import write_text_atomic
+from .dataset import file_sha256, load_dataset
 from .run import read_attempts
 
 SCORE_VALUES = ("2", "1", "0", "U")
@@ -171,24 +172,55 @@ def prepare_review(
     """
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     dataset_path = _dataset_for(run_dir, manifest, dataset)
-    rows, sha = generated_rows(run_dir, dataset_path)
-    if sha != manifest["config"]["dataset_sha256"]:
+    if file_sha256(dataset_path) != manifest["config"]["dataset_sha256"]:
         raise ValueError(
             f"{dataset_path} does not match the dataset hash recorded for this run; "
             "reviews must use the frozen set the run used"
         )
+    rows, _ = generated_rows(run_dir, dataset_path)
     result: Dict[str, Tuple[int, int]] = {}
     for name, columns in SHEETS.items():
         path = run_dir / "reviews" / name
-        existing = [] if force else read_review_sheet(path)
+        if force or not path.exists():
+            write_review_sheet(path, sheet_csv(columns, rows[name]))
+            result[name] = (0, len(rows[name]))
+            continue
+        existing = read_review_sheet(path)
         seen = {r.get("attempt_id") for r in existing}
         added = [r for r in rows[name] if r["attempt_id"] not in seen]
-        if path.exists() and not force and not added:
-            result[name] = (len(existing), 0)
-            continue
-        write_review_sheet(path, sheet_csv(columns, [*existing, *added]))
+        if added:
+            _append_rows(path, columns, added)
         result[name] = (len(existing), len(added))
     return result
+
+
+def _append_rows(path: Path, columns: Sequence[str], added: List[Dict[str, str]]) -> None:
+    """Append rows to an existing sheet without re-serialising any existing byte: the existing
+    header order, extra columns, delimiter, BOM, and line endings are kept."""
+    raw = path.read_bytes()
+    bom = raw.startswith(b"\xef\xbb\xbf")
+    text = raw.decode("utf-8-sig")
+    header_line = text.split("\n", 1)[0].rstrip("\r")
+    try:
+        dialect: Any = csv.Sniffer().sniff(header_line, delimiters=",;\t")
+        delimiter = dialect.delimiter
+    except csv.Error:
+        delimiter = ","
+    header = next(csv.reader([header_line], delimiter=delimiter))
+    missing = [c for c in columns if c not in header]
+    if missing:
+        raise ValueError(
+            f"{path} has no column(s) {', '.join(missing)}; cannot add rows without losing "
+            "data (use --force to regenerate)"
+        )
+    newline = "\r\n" if "\r\n" in text else "\n"
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=delimiter, lineterminator=newline)
+    for row in added:
+        writer.writerow([_csv_safe(str(row.get(c, ""))) for c in header])
+    if text and not text.endswith("\n"):
+        text += newline
+    write_text_atomic(path, ("\ufeff" if bom else "") + text + buf.getvalue())
 
 
 # The seven release gates and their evidence, from the Prove article "The production-readiness

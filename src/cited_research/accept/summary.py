@@ -11,11 +11,12 @@ critical failure condition was triggered.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..sanitize import utc_now_iso, write_text_atomic
-from .dataset import load_dataset
+from .dataset import file_sha256, load_dataset
 from .reviews import CF_NONE, DECISION_VALUES, LOCK_VALUES, SCORE_VALUES, read_review_sheet
 from .run import read_attempts
 
@@ -73,7 +74,14 @@ def _parse_cf(value: str, n_conditions: int) -> Optional[List[str]]:
 def load_review_state(run_dir: Path) -> Tuple[Dict[str, Dict[str, Any]], List[str]]:
     """Per-attempt review state from the sheets, plus a list of sheet errors."""
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    ds = load_dataset((run_dir / manifest["dataset_path"]).resolve())
+    dataset_path = (run_dir / manifest["dataset_path"]).resolve()
+    recorded = manifest["config"]["dataset_sha256"]
+    if file_sha256(dataset_path) != recorded:
+        raise SheetError(
+            f"{dataset_path} sha256 does not match the dataset_sha256 recorded for this run "
+            f"({recorded[:12]}...); the frozen set was edited after the run"
+        )
+    ds = load_dataset(dataset_path)
     questions = ds.by_id()
     attempts = {a["attempt_id"]: a for a in read_attempts(run_dir)}
     errors: List[str] = []
@@ -81,12 +89,27 @@ def load_review_state(run_dir: Path) -> Tuple[Dict[str, Dict[str, Any]], List[st
         name: read_review_sheet(run_dir / "reviews" / f"{name}.csv")
         for name in ("coverage", "claims", "decisions", "usage")
     }
+    keys = {
+        "coverage": ("attempt_id", "element_id"),
+        "claims": ("attempt_id", "claim_id"),
+        "decisions": ("attempt_id",),
+        "usage": ("attempt_id",),
+    }
     for name, rows in sheets.items():
+        seen: Dict[Tuple[str, ...], int] = {}
         for n, row in enumerate(rows, start=2):
             if row.get("attempt_id") not in attempts:
                 errors.append(
                     f"reviews/{name}.csv row {n}: unknown attempt_id {row.get('attempt_id')!r}"
                 )
+            key = tuple(row.get(k, "") for k in keys[name])
+            if key in seen:
+                errors.append(
+                    f"reviews/{name}.csv row {n}: duplicate row for {' '.join(key)} "
+                    f"(first on row {seen[key]})"
+                )
+            else:
+                seen[key] = n
 
     state: Dict[str, Dict[str, Any]] = {}
     for aid, att in attempts.items():
@@ -172,10 +195,15 @@ def load_review_state(run_dir: Path) -> Tuple[Dict[str, Dict[str, Any]], List[st
         except ValueError:
             errors.append(f"reviews/usage.csv row {n}: usage_value {value!r} is not a number")
             continue
-        if number < 0 or not row.get("usage_unit") or not row.get("usage_receipt_ref"):
+        if (
+            not math.isfinite(number)
+            or number < 0
+            or not row.get("usage_unit")
+            or not row.get("usage_receipt_ref")
+        ):
             errors.append(
-                f"reviews/usage.csv row {n}: usage needs a non-negative value, a unit, and a "
-                "receipt reference"
+                f"reviews/usage.csv row {n}: usage needs a finite non-negative value, a unit, "
+                "and a receipt reference"
             )
             continue
         st["usage"] = {
