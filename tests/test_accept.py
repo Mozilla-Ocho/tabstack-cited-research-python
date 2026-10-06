@@ -934,9 +934,15 @@ def test_final_ledger_write_keeps_attempts_added_during_the_request(
     def concurrent(**kw: Any) -> int:
         # Another process records an attempt while this request is in flight.
         ledger = run / "attempts.jsonl"
-        ledger.write_text(
-            ledger.read_text() + json.dumps({"attempt_id": "Q02-a1", "question_id": "Q02"}) + "\n"
-        )
+        other = {
+            "attempt_id": "Q02-a1",
+            "question_id": "Q02",
+            "run_id": "run",
+            "terminal_status": "in_progress",
+            "failure_class": "no_terminal_record",
+            "answer_dir": "answers/Q02-a1",
+        }
+        ledger.write_text(ledger.read_text() + json.dumps(other) + "\n")
         return real(**kw)
 
     monkeypatch.setattr(run_mod, "run_research", concurrent)
@@ -1860,7 +1866,7 @@ def test_corrupt_ledger_message_is_specific_and_its_promise_holds(
     assert attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl")) == 13
     err = " ".join(capsys.readouterr().err.split())
     assert "is corrupt" in err and "line 1 is not valid JSON" in err
-    assert "Fix or delete that line" in err and "report it as recovered" not in err
+    assert "Fix that line; do not delete it" in err and "report it as recovered" not in err
     # As promised: refusal until fixed...
     with pytest.raises(ValueError, match="line 1 is not valid JSON"):
         summarize(run)
@@ -1879,14 +1885,156 @@ def test_corrupt_ledger_message_is_specific_and_its_promise_holds(
     assert "ledger_recovered" not in summarize(run)
 
 
-def test_orphan_recovery_ignores_dirs_without_a_matching_record(
+def test_unlisted_answer_dirs_are_counted_or_skipped_never_dropped(
     tmp_path: Path, synth_dataset: Path
 ) -> None:
     run = tmp_path / "run"
     attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
-    (run / "answers" / "Q02-a1").mkdir()  # reserved by a parallel run, request in flight
+    (run / "answers" / "Q02-a1").mkdir()  # reserved, request not started: skipped
     (run / "answers" / "Q03-a1").mkdir()
     (run / "answers" / "Q03-a1" / "attempt.json").write_text("{broken")
     (run / "answers" / "Q03-a2").mkdir()
     (run / "answers" / "Q03-a2" / "attempt.json").write_text(json.dumps({"attempt_id": "Q09-a1"}))
-    assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1"]
+    rows = {a["attempt_id"]: a for a in _attempts(run)}
+    assert sorted(rows) == ["Q01-a1", "Q03-a1", "Q03-a2"]
+    for aid in ("Q03-a1", "Q03-a2"):
+        assert rows[aid]["terminal_status"] == "in_progress"
+        assert rows[aid]["failure_class"] == "no_terminal_record"
+        assert "the request may have been sent" in rows[aid]["missing_data"][0]
+    assert "invalid" in rows["Q03-a2"]["missing_data"][1]
+
+
+# --- orphan recovery review --------------------------------------------------------------------
+
+
+def test_sent_attempt_whose_ledger_line_was_deleted_stays_in_the_denominator(
+    tmp_path: Path, synth_dataset: Path
+) -> None:
+    """Sent, killed mid-request (artifacts but no attempt.json), then its ledger line removed:
+    it must still count, as in_progress, not vanish while its directory blocks the question."""
+    from cited_research.accept.summary import render_text
+
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    killed = run / "answers" / "Q02-a1"
+    killed.mkdir()
+    (killed / "question.txt").write_text("q\n")
+    (killed / "events.sanitized.jsonl").write_text('{"event": "start"}\n')
+    s = summarize(run)
+    b = s["scopes"]["synthetic"]
+    assert b["attempts"] == 2 and b["by_terminal_status"] == {"complete": 1, "in_progress": 1}
+    assert b["accepted_over_attempts"]["denominator"] == 2
+    assert s["ledger_placeholders"] == ["Q02-a1"] and "ledger_recovered" not in s
+    assert "the request may have been sent" in render_text(s)
+    prepare_review(run)  # the placeholder gets a usage row, no review rows, no crash
+    assert [r["attempt_id"] for r in read_review_sheet(run / "reviews" / "usage.csv")] == [
+        "Q01-a1",
+        "Q02-a1",
+    ]
+    # The next run-one writes the placeholder into the ledger with an accurate note.
+    attempt(synth_dataset, run, "Q03", fixture_client("complete-events.jsonl"))
+    rows = [json.loads(x) for x in (run / "attempts.jsonl").read_text().splitlines()]
+    placeholder = next(r for r in rows if r["attempt_id"] == "Q02-a1")
+    assert placeholder["terminal_status"] == "in_progress"
+    assert "ledger_placeholder_for" not in placeholder
+    assert any(
+        "re-created from a non-empty answers directory" in m for m in placeholder["missing_data"]
+    )
+    assert "ledger_placeholders" not in summarize(run)
+
+
+def test_invalid_attempt_json_for_an_in_progress_row_is_noted_not_adopted(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _failing_lock_on(3, monkeypatch)
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (run / "answers" / "Q01-a1" / "attempt.json").write_text(json.dumps({"attempt_id": "Q01-a1"}))
+    s = summarize(run)  # no KeyError
+    (a,) = _attempts(run)
+    assert a["terminal_status"] == "in_progress"
+    assert any("exists but is invalid" in m for m in a["missing_data"])
+    assert s["scopes"]["synthetic"]["by_terminal_status"] == {"in_progress": 1}
+
+
+@pytest.mark.parametrize("record", [{"attempt_id": "Q09-a1"}, {"attempt_id": "Q03-a1"}, [1, 2]])
+def test_invalid_orphan_attempt_json_never_crashes_a_reader(
+    tmp_path: Path, synth_dataset: Path, record: Any
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (run / "answers" / "Q03-a1").mkdir()
+    (run / "answers" / "Q03-a1" / "attempt.json").write_text(json.dumps(record))
+    s = summarize(run)
+    prepare_review(run)
+    assert s["scopes"]["synthetic"]["by_terminal_status"] == {"complete": 1, "in_progress": 1}
+    assert s["ledger_placeholders"] == ["Q03-a1"]
+
+
+def _foreign_copy(src_run: Path, dst_run: Path, aid: str, **overrides: Any) -> None:
+    import shutil
+
+    shutil.copytree(src_run / "answers" / aid, dst_run / "answers" / aid)
+    rec = json.loads((dst_run / "answers" / aid / "attempt.json").read_text())
+    rec.update(overrides)
+    (dst_run / "answers" / aid / "attempt.json").write_text(json.dumps(rec))
+
+
+@pytest.mark.parametrize("field", ["dataset_sha256", "implementation_sha256"])
+def test_copied_answers_dir_from_another_run_is_foreign_not_adopted(
+    tmp_path: Path, synth_dataset: Path, capsys: pytest.CaptureFixture[str], field: str
+) -> None:
+    from cited_research.accept.summary import render_text
+
+    other, run = tmp_path / "other", tmp_path / "run"
+    attempt(synth_dataset, other, "Q02", fixture_client("complete-events.jsonl"))
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    _foreign_copy(other, run, "Q02-a1", **{field: "f" * 64})
+    s = summarize(run)
+    assert s["scopes"]["synthetic"]["attempts"] == 1, "not counted"
+    assert s["foreign_answer_dirs"] == [
+        {
+            "dir": "answers/Q02-a1",
+            "reason": "attempt.json is from a different dataset or implementation",
+        }
+    ]
+    assert "not counted: answers/Q02-a1" in render_text(s)
+    capsys.readouterr()
+    attempt(synth_dataset, run, "Q03", fixture_client("complete-events.jsonl"))
+    assert "is not this run's attempt" in capsys.readouterr().err
+    raw = (run / "attempts.jsonl").read_text()
+    assert '"Q02-a1"' not in raw, "a foreign dir is never written into the ledger"
+
+
+def test_same_run_orphan_with_matching_identity_is_adopted(
+    tmp_path: Path, synth_dataset: Path
+) -> None:
+    other, run = tmp_path / "other", tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    attempt(synth_dataset, other, "Q02", fixture_client("complete-events.jsonl"))
+    _foreign_copy(other, run, "Q02-a1", run_id="run")  # same dataset and implementation
+    s = summarize(run)
+    assert s["ledger_recovered"] == ["Q02-a1"] and "foreign_answer_dirs" not in s
+
+
+def test_ledger_row_with_an_escaping_answer_dir_is_corrupt(
+    tmp_path: Path, synth_dataset: Path
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    rows = [json.loads(x) for x in (run / "attempts.jsonl").read_text().splitlines()]
+    rows[0]["answer_dir"] = "../../elsewhere"
+    (run / "attempts.jsonl").write_text(json.dumps(rows[0]) + "\n")
+    with pytest.raises(ValueError, match="answer_dir"):
+        summarize(run)
+
+
+@pytest.mark.parametrize("missing", ["report.md", "sources.json"])
+def test_prepare_review_refuses_cleanly_when_a_complete_answer_lost_files(
+    tmp_path: Path, synth_dataset: Path, capsys: pytest.CaptureFixture[str], missing: str
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (run / "answers" / "Q01-a1" / missing).unlink()
+    assert cli.main(["prepare-review", "--run", str(run)]) == 1
+    assert "report or sources cannot be read" in capsys.readouterr().err

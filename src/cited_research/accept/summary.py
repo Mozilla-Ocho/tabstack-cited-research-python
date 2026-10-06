@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from ..sanitize import utc_now_iso, write_text_atomic
 from .dataset import file_sha256, load_dataset
 from .reviews import CF_NONE, DECISION_VALUES, LOCK_VALUES, SCORE_VALUES, read_review_sheet
-from .run import read_attempts
+from .run import PLACEHOLDER_MARK, foreign_answer_dirs, read_attempts
 
 SUMMARY_SCHEMA = "cited-research-accept/summary/v1"
 SCOPES: Sequence[str] = ("live_scored", "pilot", "synthetic")
@@ -281,6 +281,12 @@ def summarize(run_dir: Path) -> Dict[str, Any]:
     recovered = [a["attempt_id"] for a in attempts if a.get("ledger_recovered_from")]
     if recovered:  # only present when it says something; older summaries stay identical
         out["ledger_recovered"] = recovered
+    placeholders = [a["attempt_id"] for a in attempts if a.get(PLACEHOLDER_MARK)]
+    if placeholders:
+        out["ledger_placeholders"] = placeholders
+    foreign = foreign_answer_dirs(run_dir)
+    if foreign:  # noted, never counted
+        out["foreign_answer_dirs"] = foreign
     for scope in SCOPES:
         scoped = [a for a in attempts if provenance(a) == scope]
         if scoped or scope == "live_scored":
@@ -455,6 +461,14 @@ def render_text(summary: Dict[str, Any]) -> str:
             + ", ".join(summary["ledger_recovered"])
             + ": terminal state read from answers/<attempt-id>/attempt.json"
         )
+    if summary.get("ledger_placeholders"):
+        lines.append(
+            "no ledger row and no usable attempt.json for "
+            + ", ".join(summary["ledger_placeholders"])
+            + ": counted as in_progress (the request may have been sent)"
+        )
+    for f in summary.get("foreign_answer_dirs", []):
+        lines.append(f"not counted: {f['dir']} is not this run's attempt ({f['reason']})")
     for scope, b in summary["scopes"].items():
         r, c, cl = b["responses"], b["coverage"], b["claims"]
         lines += [

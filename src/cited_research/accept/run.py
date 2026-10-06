@@ -327,73 +327,213 @@ RECOVERED_NOTE = "ledger_recovered_from"
 
 
 class LedgerCorrupt(ValueError):
-    """attempts.jsonl holds a line that is not a JSON object."""
+    """attempts.jsonl holds a line that is not a valid attempt record."""
+
+
+# Fields every reader (summarize, prepare-review, run-one) indexes directly, and their types.
+REQUIRED_RECORD_FIELDS: Dict[str, type] = {
+    "attempt_id": str,
+    "run_id": str,
+    "question_id": str,
+    "terminal_status": str,
+    "failure_class": str,
+    "answer_dir": str,
+}
+PLACEHOLDER_NOTE = "ledger row lost and no attempt.json; the request may have been sent"
+PLACEHOLDER_MARK = "ledger_placeholder_for"
+PLACEHOLDER_HEALED_NOTE = (
+    "ledger row re-created from a non-empty answers directory with no usable attempt.json"
+)
+
+
+def record_problem(rec: Any, expected_id: Optional[str] = None) -> Optional[str]:
+    """None if `rec` is an attempt record every reader can use; otherwise why not."""
+    if not isinstance(rec, dict):
+        return "not a JSON object"
+    for key, kind in REQUIRED_RECORD_FIELDS.items():
+        if not isinstance(rec.get(key), kind):
+            return f"field {key!r} missing or not a {kind.__name__}"
+    m = ATTEMPT_ID.fullmatch(rec["attempt_id"])
+    if not m:
+        return f"attempt_id {rec['attempt_id']!r} is not of the form Q00-a1"
+    if expected_id is not None and rec["attempt_id"] != expected_id:
+        return f"attempt_id {rec['attempt_id']!r} does not match {expected_id!r}"
+    if rec["answer_dir"] != f"answers/{rec['attempt_id']}":
+        return f"answer_dir {rec['answer_dir']!r} is not answers/{rec['attempt_id']}"
+    if rec["question_id"] != m.group(1):
+        return f"question_id {rec['question_id']!r} does not match attempt_id"
+    md = rec.get("missing_data")
+    if md is not None and not (isinstance(md, list) and all(isinstance(x, str) for x in md)):
+        return "missing_data is not a list of strings"
+    return None
+
+
+def _note_once(row: Dict[str, Any], prefix: str, detail: str) -> Dict[str, Any]:
+    """Add a missing_data note unless one with the same prefix is already there."""
+    row = dict(row)
+    notes = [n for n in (row.get("missing_data") or []) if isinstance(n, str)]
+    if not any(n.startswith(prefix) for n in notes):
+        notes.append(f"{prefix} ({detail})")
+    row["missing_data"] = notes
+    return row
+
+
+def _load_attempt_json(path: Path, expected_id: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """(record, "") if readable and valid; (None, reason) otherwise."""
+    try:
+        rec = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return None, f"unreadable: {exc}"
+    problem = record_problem(rec, expected_id)
+    if problem:
+        return None, f"invalid: {problem}"
+    return rec, ""
 
 
 def read_attempts(run_dir: Path) -> List[Dict[str, Any]]:
-    """The ledger, with any attempt still `in_progress` there replaced by its terminal record in
-    answers/<attempt-id>/attempt.json when one exists and is readable (the ledger update failed
-    after the request finished). Such records carry `ledger_recovered_from`. Raises
-    LedgerCorrupt naming the line when attempts.jsonl itself is not valid."""
+    """The ledger, made safe for every reader.
+
+    - Each attempts.jsonl line must be a valid record (LedgerCorrupt names the line otherwise).
+    - A row still `in_progress` whose answers/<id>/attempt.json is valid is replaced by that
+      terminal record (`ledger_recovered_from`); an unreadable or invalid attempt.json leaves the
+      row as it is with one missing_data note.
+    - An answers/<id>/ directory missing from the ledger is adopted when its attempt.json is
+      valid and belongs to this run (same dataset and implementation sha256); a non-empty one
+      with no usable attempt.json becomes an `in_progress` placeholder so a possibly-sent
+      attempt never disappears from the denominator. Empty directories (a reservation whose
+      request has not started) and foreign directories are not counted; see
+      foreign_answer_dirs.
+    """
     path = run_dir / "attempts.jsonl"
-    if not path.exists():
-        return []
     out: List[Dict[str, Any]] = []
-    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line.strip():
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise LedgerCorrupt(f"{path} line {n} is not valid JSON ({exc.msg})") from None
-        if not isinstance(row, dict) or not isinstance(row.get("attempt_id"), str):
-            raise LedgerCorrupt(f"{path} line {n} is not an attempt record")
-        if row.get("terminal_status") == "in_progress" and isinstance(row.get("answer_dir"), str):
-            durable = run_dir / row["answer_dir"] / ATTEMPT_RECORD
-            if durable.exists():
-                try:
-                    recovered = json.loads(durable.read_text(encoding="utf-8"))
-                except (OSError, ValueError) as exc:
-                    row = dict(row)
-                    notes = list(row.get("missing_data") or [])
-                    prefix = f"{row['answer_dir']}/{ATTEMPT_RECORD} exists but is unreadable"
-                    # Idempotent: this row is re-read and re-written by every later run-one.
-                    if not any(isinstance(n, str) and n.startswith(prefix) for n in notes):
-                        notes.append(f"{prefix} ({exc})")
-                    row["missing_data"] = notes
-                else:
-                    if (
-                        isinstance(recovered, dict)
-                        and recovered.get("attempt_id") == row["attempt_id"]
-                    ):
-                        row = recovered
+    if path.exists():
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise LedgerCorrupt(f"{path} line {n} is not valid JSON ({exc.msg})") from None
+            problem = record_problem(row)
+            if problem:
+                raise LedgerCorrupt(f"{path} line {n} is not a usable attempt record: {problem}")
+            if row["terminal_status"] == "in_progress":
+                durable = run_dir / row["answer_dir"] / ATTEMPT_RECORD
+                if durable.exists():
+                    rec, why = _load_attempt_json(durable, row["attempt_id"])
+                    if rec is None:
+                        kind = why.split(":", 1)[0]
+                        row = _note_once(
+                            row,
+                            f"{row['answer_dir']}/{ATTEMPT_RECORD} exists but is {kind}",
+                            why.split(": ", 1)[1],
+                        )
+                    else:
+                        row = rec
                         row[RECOVERED_NOTE] = f"{row['answer_dir']}/{ATTEMPT_RECORD}"
-        out.append(row)
-    return out + _orphan_records(run_dir, {a["attempt_id"] for a in out})
+            out.append(row)
+    adopted, _ = _scan_unlisted(run_dir, {a["attempt_id"] for a in out})
+    return out + adopted
 
 
-def _orphan_records(run_dir: Path, known: set) -> List[Dict[str, Any]]:
-    """Terminal records in answers/<attempt-id>/attempt.json whose attempt is missing from the
-    ledger entirely (for example, the ledger was corrupt and its lines were removed). Unreadable
-    or mismatched files are skipped."""
+def foreign_answer_dirs(run_dir: Path) -> List[Dict[str, str]]:
+    """answers/ directories not in the ledger that cannot be adopted as this run's attempts."""
+    known: set = set()
+    path = run_dir / "attempts.jsonl"
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(row, dict) and isinstance(row.get("attempt_id"), str):
+                known.add(row["attempt_id"])
+    return _scan_unlisted(run_dir, known)[1]
+
+
+def _run_identity(run_dir: Path) -> Tuple[Optional[str], Optional[str], Dict[str, Any]]:
+    try:
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None, None, {}
+    if not isinstance(manifest, dict):
+        return None, None, {}
+    raw_config = manifest.get("config")
+    config: Dict[str, Any] = raw_config if isinstance(raw_config, dict) else {}
+    return (
+        config.get("dataset_sha256"),
+        manifest.get("implementation_sha256"),
+        {
+            "run_id": manifest.get("run_id") if isinstance(manifest.get("run_id"), str) else None,
+            "pilot_only": config.get("pilot_only"),
+            "synthetic": config.get("synthetic"),
+        },
+    )
+
+
+def _scan_unlisted(run_dir: Path, known: set) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
     answers = run_dir / "answers"
     if not answers.is_dir():
-        return []
-    found: List[Dict[str, Any]] = []
+        return [], []
+    dataset_sha, impl_sha, run_info = _run_identity(run_dir)
+    adopted: List[Dict[str, Any]] = []
+    foreign: List[Dict[str, str]] = []
     for d in sorted(answers.iterdir()):
-        if d.name in known or not ATTEMPT_ID.fullmatch(d.name):
+        if not d.is_dir() or d.name in known:
             continue
-        durable = d / ATTEMPT_RECORD
-        if not durable.is_file():
+        if not ATTEMPT_ID.fullmatch(d.name):
+            foreign.append({"dir": f"answers/{d.name}", "reason": "not an attempt ID"})
             continue
         try:
-            rec = json.loads(durable.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+            empty = not any(d.iterdir())
+        except OSError:
+            empty = False
+        if empty:
+            continue  # reserved; the request has not started
+        rec, why = (None, "missing")
+        durable = d / ATTEMPT_RECORD
+        if durable.is_file():
+            rec, why = _load_attempt_json(durable, d.name)
+        if rec is not None:
+            if impl_sha is None or dataset_sha is None:
+                foreign.append(
+                    {
+                        "dir": f"answers/{d.name}",
+                        "reason": "ownership cannot be checked: the run manifest has no "
+                        "dataset or implementation sha256",
+                    }
+                )
+            elif (
+                rec.get("dataset_sha256") != dataset_sha
+                or rec.get("implementation_sha256") != impl_sha
+            ):
+                foreign.append(
+                    {
+                        "dir": f"answers/{d.name}",
+                        "reason": "attempt.json is from a different dataset or implementation",
+                    }
+                )
+            else:
+                rec[RECOVERED_NOTE] = f"answers/{d.name}/{ATTEMPT_RECORD}"
+                adopted.append(rec)
             continue
-        if isinstance(rec, dict) and rec.get("attempt_id") == d.name:
-            rec[RECOVERED_NOTE] = f"answers/{d.name}/{ATTEMPT_RECORD}"
-            found.append(rec)
-    return found
+        placeholder: Dict[str, Any] = dict.fromkeys(ATTEMPT_COLUMNS)
+        placeholder.update(
+            schema=ATTEMPT_SCHEMA,
+            attempt_id=d.name,
+            run_id=run_info.get("run_id") or run_dir.name,
+            question_id=d.name.split("-", 1)[0],
+            answer_dir=f"answers/{d.name}",
+            terminal_status="in_progress",
+            failure_class=FAILURE_CLASS["in_progress"],
+            pilot_only=bool(run_info.get("pilot_only")),
+            synthetic=bool(run_info.get("synthetic")),
+            review_status="not_applicable",
+            missing_data=[PLACEHOLDER_NOTE, f"attempt.json {why}"],
+        )
+        placeholder[PLACEHOLDER_MARK] = f"answers/{d.name}"
+        adopted.append(placeholder)
+    return adopted, foreign
 
 
 HEALED_NOTE = "ledger entry restored from attempt.json after a failed ledger update"
@@ -404,9 +544,16 @@ def write_attempts(run_dir: Path, attempts: List[Dict[str, Any]]) -> None:
     dropped (the ledger is now correct) and a missing_data note keeps the history."""
     rows: List[Dict[str, Any]] = []
     for a in attempts:
-        if RECOVERED_NOTE in a:
-            a = {k: v for k, v in a.items() if k != RECOVERED_NOTE}
-            a["missing_data"] = [*(a.get("missing_data") or []), HEALED_NOTE]
+        for marker, note in (
+            (RECOVERED_NOTE, HEALED_NOTE),
+            (PLACEHOLDER_MARK, PLACEHOLDER_HEALED_NOTE),
+        ):
+            if marker in a:
+                a = {k: v for k, v in a.items() if k != marker}
+                notes = list(a.get("missing_data") or [])
+                if note not in notes:
+                    notes.append(note)
+                a["missing_data"] = notes
         rows.append(a)
     write_text_atomic(
         run_dir / "attempts.jsonl",
@@ -535,6 +682,7 @@ def run_one(
                 another_attempt,
             )
         rel = answer_dir.relative_to(run_dir).as_posix()
+        _note_foreign_dirs(run_dir)
         query = f"{question['question']}\n\n{freeze['output_instruction']}"
         record = _initial_record(
             attempt_id,
@@ -645,6 +793,17 @@ def run_one(
         pass  # the outcome is already recorded; a closed stdout cannot change it
     assert code is not None
     return code
+
+
+def _note_foreign_dirs(run_dir: Path) -> None:
+    try:
+        for f in foreign_answer_dirs(run_dir):
+            sys.stderr.write(
+                f"note: {run_dir / f['dir']} is not this run's attempt ({f['reason']}); "
+                "it is not counted\n"
+            )
+    except (OSError, ValueError):
+        pass
 
 
 def _remove_ledger_row(run_dir: Path, attempt_id: str) -> bool:
@@ -783,9 +942,9 @@ def _report_post_request_failure(
     elif durable_error is None and isinstance(ledger_error, LedgerCorrupt):
         lines.append(
             f"The attempt record is in {durable}. {ledger} is corrupt ({ledger_error}), so it "
-            "was not updated, and summarize and run-one refuse until it is fixed. Fix or "
-            "delete that line; then summarize and the next run-one recover this attempt from "
-            f"{durable}."
+            "was not updated, and summarize and run-one refuse until it is fixed. Fix that "
+            "line; do not delete it: it may be the only record of another attempt. Then "
+            f"summarize and the next run-one recover this attempt from {durable}."
         )
     elif durable_error is None:
         lines.append(

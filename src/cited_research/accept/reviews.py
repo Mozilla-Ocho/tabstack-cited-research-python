@@ -134,14 +134,25 @@ def generated_rows(
         out["usage.csv"].append({**base, "terminal_status": att["terminal_status"]})
         if att["terminal_status"] != "complete":
             continue
-        q = questions[att["question_id"]]
+        q = questions.get(att["question_id"])
+        if q is None:
+            raise ValueError(
+                f"attempt {att['attempt_id']} is for {att['question_id']}, which is not in "
+                f"{dataset_path}"
+            )
         for el in q["required_elements"]:
             out["coverage.csv"].append(
                 {**base, "element_id": el["id"], "criterion": el["criterion"]}
             )
         answer = run_dir / att["answer_dir"]
-        report = (answer / "report.md").read_text(encoding="utf-8")
-        pages = load_cited_pages(answer / "sources.json")
+        try:
+            report = (answer / "report.md").read_text(encoding="utf-8")
+            pages = load_cited_pages(answer / "sources.json")
+        except (OSError, ValueError) as exc:
+            raise ValueError(
+                f"attempt {att['attempt_id']} is complete but its report or sources cannot be "
+                f"read ({exc}); restore them before preparing reviews"
+            ) from exc
         for row in review_rows(report, pages):
             out["claims.csv"].append(
                 {
