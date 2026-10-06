@@ -658,7 +658,8 @@ def run_one(
     # Provenance only; the comparison uses impl_sha. None means git was unavailable or failed.
     commit, dirty = _git_commit(), _implementation_dirty()
     # ---- Phase 1, before the request. Any failure here means nothing was sent: it ends as
-    # RunRefused (exit 1) and never leaves a reserved attempt directory behind.
+    # RunRefused (exit 1). The reserved attempt directory is removed when it holds nothing but
+    # dotfiles and its ledger row is gone; otherwise it stays, and its ID is never reissued.
     answer_dir: Optional[Path] = None
     attempt_id = ""
     ledger_written = False  # True once the in_progress row may be in attempts.jsonl
