@@ -95,6 +95,7 @@ runs/<run-id>/
   answers/<attempt-id>/events.sanitized.jsonl  request timeline
   answers/<attempt-id>/run-manifest.json       per-request timing and status
   answers/<attempt-id>/question.txt            exactly what was sent
+  answers/<attempt-id>/attempt.json            the attempt's terminal record (new runs)
   answers/<attempt-id>/trace-diagram.md, review-sheet.csv   from the traced runner
   reviews/coverage.csv             one row per required element
   reviews/claims.csv               one row per material claim (split rows as needed)
@@ -112,13 +113,21 @@ reviewer-side files.
 
 ## Attempt ledger
 
-Each `attempts.jsonl` record carries the dataset version and hash, the full implementation
-commit (and whether `src/` was dirty), Python and SDK versions, mode, retry policy
+Each `attempts.jsonl` record carries the dataset version and hash, `implementation_sha256`, the
+HEAD commit and whether `src/`, `pyproject.toml`, or `uv.lock` differed from it, Python and SDK versions, mode, retry policy
 (`sdk_max_retries: 0`, `application_retries: 0`), the question and instruction, UTC dispatch and
 terminal times, client-observed first-event and terminal elapsed time, terminal status and
 failure class, ordered source URLs, artifact paths, `usage_status`, `pilot_only`, `synthetic`,
 review status, and missing-data notes. An attempt is written as `in_progress` before the request
-and updated after, so a crash leaves a visible record.
+and updated after, so a crash leaves a visible record. The terminal record is also written to
+`answers/<attempt-id>/attempt.json` before the ledger update; if that update fails (the ledger
+lock cannot be taken), `run-one` exits 13 and says so, and `summarize` and the next `run-one`
+read the outcome from `attempt.json` and report the attempt as recovered rather than leaving it
+`in_progress`. Do not re-run the request to repair the ledger.
+
+The committed pilot's `implementation_dirty: false` was recorded by a check later found to
+always report clean (it ran git from inside the package directory); see
+`handoff/HANDOFF.md`. Runs recorded after that fix report it correctly.
 
 | terminal_status | failure_class | exit |
 |---|---|---|
@@ -134,7 +143,8 @@ and updated after, so a crash leaves a visible record.
 | `unexpected_error` | `unexpected_error` | 11 |
 | `deadline_exceeded` | `client_timeout_deadline` | 12 |
 
-`run-one` also exits 5 when `TABSTACK_API_KEY` is unset and 1 when it refuses. A client timeout
+`run-one` also exits 5 when `TABSTACK_API_KEY` is unset, 1 when it refuses (nothing is sent),
+and 13 when the request finished but the ledger could not be updated. A client timeout
 or mid-stream transport failure sets `client_stopped_waiting: true` and
 `provider_task_state: "unknown"`: the client stopped waiting, which does not establish that the
 service cancelled the task.

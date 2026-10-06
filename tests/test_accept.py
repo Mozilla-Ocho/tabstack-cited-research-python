@@ -1238,3 +1238,168 @@ def test_two_processes_on_one_run_lose_no_attempts(tmp_path: Path, synth_dataset
     assert ids == sorted([f"Q01-a{i}" for i in range(1, 5)] + [f"Q02-a{i}" for i in range(1, 5)])
     assert all(a["terminal_status"] == "complete" for a in attempts)
     assert sorted(p.name for p in (run / "answers").iterdir()) == ids
+
+
+# --- review fixes, round 4 ---------------------------------------------------------------------
+
+
+def _git_repo_with_package(root: Path) -> Path:
+    import subprocess
+
+    pkg = _fake_package(root)
+    (pkg / "models.py").write_text("m = 1\n")
+
+    def git(*args: str) -> None:
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        )
+
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-q", "-m", "init")
+    return pkg
+
+
+def test_dirty_check_runs_from_the_repo_root(tmp_path: Path) -> None:
+    from cited_research.accept.run import _implementation_dirty
+
+    pkg = _git_repo_with_package(tmp_path)
+    assert _implementation_dirty(pkg) is False
+    (pkg / "models.py").write_text("m = 2\n")
+    assert _implementation_dirty(pkg) is True, "edited package file"
+    (pkg / "models.py").write_text("m = 1\n")
+    assert _implementation_dirty(pkg) is False
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n")
+    assert _implementation_dirty(pkg) is True, "edited root pyproject.toml"
+    (tmp_path / "pyproject.toml").write_text("[project]\n")
+    (tmp_path / "uv.lock").write_text("lock2\n")
+    assert _implementation_dirty(pkg) is True, "edited root uv.lock"
+    (tmp_path / "uv.lock").write_text("lock\n")
+    (pkg / "accept" / "new.py").write_text("n = 1\n")
+    assert _implementation_dirty(pkg) is True, "untracked package file"
+    (pkg / "accept" / "new.py").unlink()
+    (tmp_path / "README.md").write_text("edited docs\n")
+    assert _implementation_dirty(pkg) is False, "docs are not implementation"
+
+
+def test_dirty_check_is_none_outside_the_packages_own_checkout(tmp_path: Path) -> None:
+    from cited_research.accept.run import _implementation_dirty
+
+    pkg = tmp_path / "elsewhere" / "cited_research"
+    pkg.mkdir(parents=True)
+    assert _implementation_dirty(pkg) is None
+
+
+@pytest.mark.parametrize(
+    "junk",
+    [".DS_Store", "accept/.run.py.swp", "accept/run.py~", "accept/run.py.orig", ".hidden/x.py"],
+)
+def test_identity_ignores_junk_files(tmp_path: Path, junk: str) -> None:
+    from cited_research.accept.run import implementation_identity
+
+    pkg = _fake_package(tmp_path)
+    base = implementation_identity(pkg)[0]
+    (pkg / junk).parent.mkdir(parents=True, exist_ok=True)
+    (pkg / junk).write_text("junk\n")
+    assert implementation_identity(pkg)[0] == base
+    (pkg / "accept" / "run.py").write_text("y = 99\n")
+    assert implementation_identity(pkg)[0] != base, "a .py edit still changes it"
+
+
+def test_every_shipped_package_file_is_hashed() -> None:
+    """Fails if the package gains a file type the identity would skip; add it to
+    PACKAGE_SUFFIXES or PACKAGE_NAMES deliberately."""
+    from cited_research.accept.run import PACKAGE_DIR, implementation_identity, is_package_file
+
+    files = [
+        p
+        for p in PACKAGE_DIR.rglob("*")
+        if p.is_file()
+        and "__pycache__" not in p.parts
+        and not any(part.startswith(".") for part in p.relative_to(PACKAGE_DIR).parts)
+        and p.suffix != ".pyc"
+    ]
+    assert files and all(is_package_file(p) for p in files), [
+        p for p in files if not is_package_file(p)
+    ]
+    hashed = set(implementation_identity()[1])
+    assert {f"cited_research/{p.relative_to(PACKAGE_DIR).as_posix()}" for p in files} <= hashed
+
+
+def _failing_lock_on(call: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    import contextlib
+
+    import cited_research.accept.run as run_mod
+
+    real = run_mod.ledger_lock
+    count = {"n": 0}
+
+    @contextlib.contextmanager
+    def lock(run_dir: Path) -> Iterator[None]:
+        count["n"] += 1
+        if count["n"] == call:
+            raise run_mod.LedgerLockError("run ledger still locked by another run-one after 60s")
+        with real(run_dir):
+            yield
+
+    monkeypatch.setattr(run_mod, "ledger_lock", lock)
+
+
+@pytest.mark.parametrize("call", [1, 2])
+def test_lock_failure_before_the_request_sends_nothing(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch, call: int
+) -> None:
+    _failing_lock_on(call, monkeypatch)
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    run = tmp_path / "run"
+    with pytest.raises(RunRefused, match="nothing was sent"):
+        attempt(synth_dataset, run, "Q01", lambda: client)
+    assert client.agent.calls == []
+    assert not (run / "answers" / "Q01-a1").exists(), "no reserved directory left behind"
+    assert _attempts(run) == []
+
+
+def test_lock_failure_after_the_request_keeps_the_outcome(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    _failing_lock_on(3, monkeypatch)
+    run = tmp_path / "run"
+    code = attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    assert code == run_mod.EXIT_LEDGER_NOT_UPDATED == 13
+    err = capsys.readouterr().err
+    assert "finished with status complete (exit 0)" in err and "could not be updated" in err
+    raw = (run / "attempts.jsonl").read_text()
+    assert '"terminal_status": "in_progress"' in raw, "the ledger itself was not updated"
+    durable = json.loads((run / "answers" / "Q01-a1" / "attempt.json").read_text())
+    assert durable["terminal_status"] == "complete"
+    (a,) = _attempts(run)
+    assert a["terminal_status"] == "complete"
+    assert a["ledger_recovered_from"] == "answers/Q01-a1/attempt.json"
+    s = summarize(run)
+    assert s["ledger_recovered"] == ["Q01-a1"]
+    assert s["scopes"]["synthetic"]["by_terminal_status"] == {"complete": 1}
+    # The next run-one (lock working again) writes the recovered record into the ledger.
+    monkeypatch.undo()
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    lines = [json.loads(x) for x in (run / "attempts.jsonl").read_text().splitlines()]
+    assert [x["terminal_status"] for x in lines] == ["complete", "complete"]
+
+
+def test_cli_turns_a_lock_error_into_a_clean_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    def raises(**_: Any) -> int:
+        raise run_mod.LedgerLockError("cannot lock the run ledger: [Errno 9] Bad file descriptor")
+
+    monkeypatch.setenv("TABSTACK_API_KEY", "sk_test_not_a_real_key_000000")
+    monkeypatch.setattr(cli, "run_one", raises)
+    argv = ["run-one", "--dataset", str(PILOT), "--question", "Q05", "--run", str(tmp_path / "r")]
+    assert cli.main(argv) == 1
+    assert capsys.readouterr().err.startswith("refused: cannot lock the run ledger")

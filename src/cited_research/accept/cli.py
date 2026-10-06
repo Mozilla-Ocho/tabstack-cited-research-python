@@ -29,7 +29,7 @@ from .dataset import (
     validate_dataset,
 )
 from .reviews import prepare_review
-from .run import RunRefused, run_one
+from .run import LedgerLockError, RunRefused, run_one
 from .summary import SheetError, render_text, summarize, write_summary
 
 EXIT_REFUSED = 1
@@ -145,7 +145,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return COMMANDS[args.command](args)
-    except (RunRefused, FileNotFoundError, FileExistsError, ValueError) as exc:
+    except (RunRefused, LedgerLockError, FileNotFoundError, FileExistsError, ValueError) as exc:
         sys.stderr.write(f"refused: {exc}\n")
         return EXIT_REFUSED
 

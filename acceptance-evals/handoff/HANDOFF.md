@@ -9,12 +9,27 @@ recorded date. Nothing here measures typical latency, cost, accuracy, or reliabi
 - Repository: https://github.com/Mozilla-Ocho/tabstack-cited-research-python (public)
 - Branch: `feat/acceptance-evals`, created from `origin/main` at
   `ede0ac24c6d84df97570512e2da70b4ae0fa3517`. Not merged; no PR opened.
-- Implementation commit used for the live pilot: `452aa44c63d110e85e0c71f3118b8a81ca80a293`
-  (`implementation_dirty: false` in the pilot manifest). Two later commits change tests only.
+- Implementation commit used for the live pilot: `452aa44c63d110e85e0c71f3118b8a81ca80a293`.
+  Two later commits change tests only.
+- **Correction on the pilot's dirty flag.** The pilot manifest and attempt say
+  `implementation_dirty: false`. That value came from a check later found to always return
+  false: it ran `git status --porcelain -- src pyproject.toml uv.lock` with the package directory
+  as its working directory, so the pathspecs pointed inside the package and never matched (fixed
+  in the third review round; the pilot artifacts are left as recorded). The flag is not evidence
+  either way. What does exist: (a) the recorded `implementation_commit` is `452aa44`;
+  (b) `git log` shows no commit touching `src/`, `pyproject.toml`, or `uv.lock` between
+  `452aa44` and the pilot dispatch (2026-10-06T17:49:45Z), and the next commit touching
+  `tests/` (`18c9956`) came after it; (c) immediately before the pilot, the operator session ran
+  `git status --short src pyproject.toml uv.lock` from the repository root, which printed
+  nothing, at 2026-10-06T17:49:40Z. Item (c) is from the agent's session log, not a committed
+  artifact. None of this proves the working tree on disk matched `452aa44` byte for byte at
+  dispatch, and the pilot predates `implementation_sha256`, so no content hash was recorded.
   Code-review fixes landed afterwards in `ef2632a` (summarize, prepare-review, ledger write,
   URL checks), then the PR #3 review fixes (one deadline signal, finite flags, per-attempt
   commit check, ledger lock), then the second-review fixes (content-hash implementation
-  identity instead of HEAD, bounded Windows lock retry, flag wording); the pilot artifacts and review sheets are byte-identical after them, and
+  identity instead of HEAD, bounded Windows lock retry, flag wording), then the third-review
+  fixes (dirty check from the repo root, identity hashes only package file types, clean lock
+  errors with a durable `attempt.json`); the pilot artifacts and review sheets are byte-identical after them, and
   `summarize` output on the pilot is unchanged except `generated_at_utc`.
 - Changed files: `FILES.txt` in this folder (`git diff --name-status` against `origin/main`).
 
@@ -77,8 +92,8 @@ from `uv.lock`, which is unchanged from `origin/main`. Offline tests also pass o
 
 ## 4. Offline test receipt and fixtures
 
-`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 197 passed
-(104 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 197 passed.
+`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 209 passed
+(116 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 209 passed.
 
 Fixtures: `tests/fixtures/*.jsonl` replayed through the SDK's own `ResearchEvent` model
 (`complete-events`, `complete-ordered-sources`, `complete-no-cited-pages`,

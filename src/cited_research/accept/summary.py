@@ -278,6 +278,9 @@ def summarize(run_dir: Path) -> Dict[str, Any]:
         "attempts": {"total": len(attempts), "by_terminal_status": by_status},
         "scopes": {},
     }
+    recovered = [a["attempt_id"] for a in attempts if a.get("ledger_recovered_from")]
+    if recovered:  # only present when it says something; older summaries stay identical
+        out["ledger_recovered"] = recovered
     for scope in SCOPES:
         scoped = [a for a in attempts if provenance(a) == scope]
         if scoped or scope == "live_scored":
@@ -446,6 +449,12 @@ def render_text(summary: Dict[str, Any]) -> str:
             f"{k} {v}" for k, v in sorted(summary["attempts"]["by_terminal_status"].items())
         ),
     ]
+    if summary.get("ledger_recovered"):
+        lines.append(
+            "ledger not updated for "
+            + ", ".join(summary["ledger_recovered"])
+            + ": terminal state read from answers/<attempt-id>/attempt.json"
+        )
     for scope, b in summary["scopes"].items():
         r, c, cl = b["responses"], b["coverage"], b["claims"]
         lines += [

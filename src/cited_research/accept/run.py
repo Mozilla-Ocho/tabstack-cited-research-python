@@ -120,22 +120,62 @@ ATTEMPT_COLUMNS = (
 )
 
 
-def _implementation_dirty() -> Optional[bool]:
+def _repo_root(package_dir: Path = PACKAGE_DIR) -> Optional[Path]:
+    """Top of this package's own git checkout (the same check `_git_commit` makes), or None."""
+    try:
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=package_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        ).stdout.strip()
+    except Exception:
+        return None
+    root = Path(top).resolve()
+    if (root / "src" / package_dir.name).resolve() != package_dir.resolve():
+        return None
+    return root
+
+
+def _implementation_dirty(package_dir: Path = PACKAGE_DIR) -> Optional[bool]:
+    """True if the implementation paths differ from HEAD (modified, staged, or untracked), run
+    from the repository root so the pathspecs mean the root's src/, pyproject.toml, uv.lock.
+    None when git fails, times out, or the package is not in its own checkout."""
+    root = _repo_root(package_dir)
+    if root is None:
+        return None
     try:
         out = subprocess.run(
             ["git", "status", "--porcelain", "--", "src", "pyproject.toml", "uv.lock"],
-            cwd=PACKAGE_DIR,
+            cwd=root,
             capture_output=True,
             text=True,
             check=True,
             timeout=5,
         ).stdout
-        return bool(out.strip())
     except Exception:
         return None
+    return bool(out.strip())
 
 
 IMPLEMENTATION_ROOT_FILES = ("pyproject.toml", "uv.lock")
+
+
+# File types the package ships. Hatch builds the wheel from src/cited_research, and today that
+# directory holds only .py files; a test fails if a file of any other type appears there, so a
+# new data file type gets added here deliberately instead of being silently ignored.
+PACKAGE_SUFFIXES = (".py",)
+PACKAGE_NAMES = ("py.typed",)
+
+
+def is_package_file(path: Path, package_dir: Path = PACKAGE_DIR) -> bool:
+    """A real package file: a shipped type, not a dotfile (.DS_Store), editor backup, or cache."""
+    parts = path.relative_to(package_dir).parts
+    if any(part.startswith(".") or part == "__pycache__" for part in parts):
+        return False
+    return path.suffix in PACKAGE_SUFFIXES or path.name in PACKAGE_NAMES
 
 
 class ImplementationUnknown(RuntimeError):
@@ -145,8 +185,9 @@ class ImplementationUnknown(RuntimeError):
 def implementation_identity(
     package_dir: Path = PACKAGE_DIR, project_root: Optional[Path] = None
 ) -> Tuple[str, List[str]]:
-    """sha256 over the content of the implementation only: every file in the installed package
-    (no __pycache__, no .pyc) plus pyproject.toml and uv.lock when they sit at the project root.
+    """sha256 over the content of the implementation only: the package's own files (see
+    is_package_file: shipped types, no dotfiles, backups, or caches) plus pyproject.toml and
+    uv.lock when they sit at the project root.
     Returns (hex digest, covered paths).
 
     It is read from disk, so it is the same for the same code whatever HEAD is (a docs or
@@ -157,7 +198,7 @@ def implementation_identity(
     root = project_root if project_root is not None else package_dir.parents[1]
     entries: List[Tuple[str, Path]] = []
     for path in sorted(package_dir.rglob("*")):
-        if path.is_dir() or "__pycache__" in path.parts or path.suffix in (".pyc", ".pyo"):
+        if path.is_dir() or not is_package_file(path, package_dir):
             continue
         entries.append(((Path(package_dir.name) / path.relative_to(package_dir)).as_posix(), path))
     if (root / "src" / package_dir.name).resolve() == package_dir.resolve():
@@ -242,11 +283,28 @@ def ledger_lock(run_dir: Path) -> Iterator[None]:
                 fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
+ATTEMPT_RECORD = "attempt.json"
+EXIT_LEDGER_NOT_UPDATED = 13
+RECOVERED_NOTE = "ledger_recovered_from"
+
+
 def read_attempts(run_dir: Path) -> List[Dict[str, Any]]:
+    """The ledger, with any attempt still `in_progress` there replaced by its terminal record in
+    answers/<attempt-id>/attempt.json when one exists (the ledger update failed after the
+    request finished). Such records carry `ledger_recovered_from`."""
     path = run_dir / "attempts.jsonl"
     if not path.exists():
         return []
-    return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        if row.get("terminal_status") == "in_progress" and row.get("answer_dir"):
+            durable = run_dir / row["answer_dir"] / ATTEMPT_RECORD
+            if durable.exists():
+                row = json.loads(durable.read_text(encoding="utf-8"))
+                row[RECOVERED_NOTE] = f"{row['answer_dir']}/{ATTEMPT_RECORD}"
+        out.append(row)
+    return out
 
 
 def write_attempts(run_dir: Path, attempts: List[Dict[str, Any]]) -> None:
@@ -356,7 +414,12 @@ def run_one(
         raise RunRefused(f"cannot identify the implementation, so nothing was sent: {exc}") from exc
     # Provenance only; the comparison uses impl_sha. None means git was unavailable or failed.
     commit, dirty = _git_commit(), _implementation_dirty()
-    with ledger_lock(run_dir):
+    try:
+        lock = ledger_lock(run_dir)
+        lock.__enter__()
+    except LedgerLockError as exc:
+        raise RunRefused(f"{exc}; nothing was sent") from exc
+    try:
         manifest, attempts, attempt_id, answer_dir = _reserve_attempt(
             run_dir,
             dataset_path,
@@ -370,6 +433,8 @@ def run_one(
             question_id,
             another_attempt,
         )
+    finally:
+        lock.__exit__(None, None, None)
     query = f"{question['question']}\n\n{freeze['output_instruction']}"
     rel = answer_dir.relative_to(run_dir).as_posix()
     record: Dict[str, Any] = dict.fromkeys(ATTEMPT_COLUMNS)
@@ -409,8 +474,12 @@ def run_one(
     )
     # Recorded before the request, so a crash leaves a visible in_progress attempt. The lock was
     # released after reserving; re-read so a parallel process's record is never dropped.
-    with ledger_lock(run_dir):
-        write_attempts(run_dir, [*read_attempts(run_dir), record])
+    try:
+        with ledger_lock(run_dir):
+            write_attempts(run_dir, [*read_attempts(run_dir), record])
+    except LedgerLockError as exc:
+        answer_dir.rmdir()  # still empty: nothing has been sent
+        raise RunRefused(f"{exc}; nothing was sent") from exc
 
     kwargs: Dict[str, Any] = {}
     if post_terminal_grace is not None:
@@ -429,14 +498,30 @@ def run_one(
         **kwargs,
     )
     _finish_record(record, answer_dir, rel, code)
+    # Durable copy of the terminal record before touching the shared ledger: if the ledger
+    # update fails, read_attempts recovers the outcome from here instead of leaving the attempt
+    # silently in_progress.
+    write_text_atomic(
+        answer_dir / ATTEMPT_RECORD, json.dumps(record, indent=2, sort_keys=True) + "\n"
+    )
     # Re-read under the lock: another process may have appended attempts while this one ran.
-    with ledger_lock(run_dir):
-        current = read_attempts(run_dir)
-        if not any(a.get("attempt_id") == attempt_id for a in current):
-            current.append(record)
-        write_attempts(
-            run_dir, [record if a.get("attempt_id") == attempt_id else a for a in current]
+    try:
+        with ledger_lock(run_dir):
+            current = read_attempts(run_dir)
+            if not any(a.get("attempt_id") == attempt_id for a in current):
+                current.append(record)
+            write_attempts(
+                run_dir, [record if a.get("attempt_id") == attempt_id else a for a in current]
+            )
+    except LedgerLockError as exc:
+        sys.stderr.write(
+            f"attempt {attempt_id} finished with status {record['terminal_status']} "
+            f"(exit {code}), but {run_dir / 'attempts.jsonl'} could not be updated: {exc}.\n"
+            f"The terminal record is in {answer_dir / ATTEMPT_RECORD}; summarize and the next "
+            "run-one read it from there and report the attempt as recovered. Do not re-run the "
+            "request to fix the ledger.\n"
         )
+        return EXIT_LEDGER_NOT_UPDATED
     if not quiet:
         stdout.write(
             f"attempt {attempt_id}: {record['terminal_status']} (exit {code}), "
