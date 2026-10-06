@@ -1799,3 +1799,94 @@ def test_phase_one_failure_after_the_in_progress_write_removes_the_row(
     monkeypatch.undo()
     attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
     assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1"], "question not blocked"
+
+
+# --- delta review 2 ----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("exc", [OSError(5, "close failed"), KeyboardInterrupt()])
+def test_unremovable_phase_one_row_is_named_with_how_to_clear_it(
+    tmp_path: Path,
+    synth_dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    exc: BaseException,
+) -> None:
+    import contextlib
+
+    import cited_research.accept.run as run_mod
+
+    real = run_mod.ledger_lock
+    count = {"n": 0}
+
+    @contextlib.contextmanager
+    def lock(run_dir: Path) -> Iterator[None]:
+        count["n"] += 1
+        with real(run_dir):
+            yield
+        if count["n"] == 2:
+            raise exc
+
+    monkeypatch.setattr(run_mod, "ledger_lock", lock)
+    monkeypatch.setattr(run_mod, "_remove_ledger_row", lambda *_: False)
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    run = tmp_path / "run"
+    if isinstance(exc, Exception):
+        with pytest.raises(RunRefused) as info:
+            attempt(synth_dataset, run, "Q01", lambda: client)
+        msg = str(info.value)
+    else:
+        with pytest.raises(KeyboardInterrupt):
+            attempt(synth_dataset, run, "Q01", lambda: client)
+        msg = capsys.readouterr().err
+    assert "nothing was sent" in msg or "interrupted before the request" in msg
+    assert "the in_progress row for Q01-a1 could not be removed" in msg
+    assert "it was never sent" in msg and "delete that line" in msg
+    assert client.agent.calls == []
+    assert (run / "answers" / "Q01-a1").is_dir(), "directory kept while its row remains"
+    assert [a["terminal_status"] for a in _attempts(run)] == ["in_progress"]
+
+
+def test_corrupt_ledger_message_is_specific_and_its_promise_holds(
+    tmp_path: Path,
+    synth_dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from cited_research.accept.summary import render_text
+
+    run = tmp_path / "run"
+    _post_request_failure_case("corrupt_ledger", run, monkeypatch)
+    assert attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl")) == 13
+    err = " ".join(capsys.readouterr().err.split())
+    assert "is corrupt" in err and "line 1 is not valid JSON" in err
+    assert "Fix or delete that line" in err and "report it as recovered" not in err
+    # As promised: refusal until fixed...
+    with pytest.raises(ValueError, match="line 1 is not valid JSON"):
+        summarize(run)
+    monkeypatch.undo()
+    # ...then, after deleting the corrupt line, the attempt is recovered from attempt.json.
+    (run / "attempts.jsonl").write_text("")
+    s = summarize(run)
+    assert s["ledger_recovered"] == ["Q01-a1"]
+    assert s["scopes"]["synthetic"]["by_terminal_status"] == {"complete": 1}
+    assert "ledger not updated for Q01-a1" in render_text(s)
+    # The next run-one writes it back into the ledger and the note goes away.
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    rows = [json.loads(x) for x in (run / "attempts.jsonl").read_text().splitlines()]
+    assert sorted(r["attempt_id"] for r in rows) == ["Q01-a1", "Q02-a1"]
+    assert all("ledger_recovered_from" not in r for r in rows)
+    assert "ledger_recovered" not in summarize(run)
+
+
+def test_orphan_recovery_ignores_dirs_without_a_matching_record(
+    tmp_path: Path, synth_dataset: Path
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (run / "answers" / "Q02-a1").mkdir()  # reserved by a parallel run, request in flight
+    (run / "answers" / "Q03-a1").mkdir()
+    (run / "answers" / "Q03-a1" / "attempt.json").write_text("{broken")
+    (run / "answers" / "Q03-a2").mkdir()
+    (run / "answers" / "Q03-a2" / "attempt.json").write_text(json.dumps({"attempt_id": "Q09-a1"}))
+    assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1"]

@@ -369,7 +369,31 @@ def read_attempts(run_dir: Path) -> List[Dict[str, Any]]:
                         row = recovered
                         row[RECOVERED_NOTE] = f"{row['answer_dir']}/{ATTEMPT_RECORD}"
         out.append(row)
-    return out
+    return out + _orphan_records(run_dir, {a["attempt_id"] for a in out})
+
+
+def _orphan_records(run_dir: Path, known: set) -> List[Dict[str, Any]]:
+    """Terminal records in answers/<attempt-id>/attempt.json whose attempt is missing from the
+    ledger entirely (for example, the ledger was corrupt and its lines were removed). Unreadable
+    or mismatched files are skipped."""
+    answers = run_dir / "answers"
+    if not answers.is_dir():
+        return []
+    found: List[Dict[str, Any]] = []
+    for d in sorted(answers.iterdir()):
+        if d.name in known or not ATTEMPT_ID.fullmatch(d.name):
+            continue
+        durable = d / ATTEMPT_RECORD
+        if not durable.is_file():
+            continue
+        try:
+            rec = json.loads(durable.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(rec, dict) and rec.get("attempt_id") == d.name:
+            rec[RECOVERED_NOTE] = f"answers/{d.name}/{ATTEMPT_RECORD}"
+            found.append(rec)
+    return found
 
 
 HEALED_NOTE = "ledger entry restored from attempt.json after a failed ledger update"
@@ -541,9 +565,26 @@ def run_one(
         row_gone = not ledger_written or _remove_ledger_row(run_dir, attempt_id)
         if answer_dir is not None and row_gone:
             _remove_if_empty(answer_dir)  # kept if its row could not be removed
-        if isinstance(exc, RunRefused) or not isinstance(exc, Exception):
+        stray = ""
+        if not row_gone:
+            stray = (
+                f"; the in_progress row for {attempt_id} could not be removed from "
+                f"{run_dir / 'attempts.jsonl'}, but it was never sent. To clear it, delete that "
+                f"line and the empty directory {answer_dir}; until then it counts as an "
+                "attempt with no terminal record"
+            )
+        if not isinstance(exc, Exception):
+            if stray:
+                try:
+                    sys.stderr.write(f"interrupted before the request{stray}.\n")
+                except (OSError, ValueError):
+                    pass
             raise
-        raise RunRefused(f"{type(exc).__name__}: {exc}; nothing was sent") from exc
+        if isinstance(exc, RunRefused):
+            if stray:
+                raise RunRefused(f"{exc}{stray}") from exc
+            raise
+        raise RunRefused(f"{type(exc).__name__}: {exc}; nothing was sent{stray}") from exc
 
     # ---- Phase 2 and 3: the request has been (or is being) sent. From here on, every failure
     # ends as the post-request outcome: the terminal record is kept in attempt.json, the exit is
@@ -739,6 +780,13 @@ def _report_post_request_failure(
     durable = answer_dir / ATTEMPT_RECORD
     if durable_error is None and ledger_error is None:
         lines.append(f"The attempt record is in {durable} and {ledger} was updated.")
+    elif durable_error is None and isinstance(ledger_error, LedgerCorrupt):
+        lines.append(
+            f"The attempt record is in {durable}. {ledger} is corrupt ({ledger_error}), so it "
+            "was not updated, and summarize and run-one refuse until it is fixed. Fix or "
+            "delete that line; then summarize and the next run-one recover this attempt from "
+            f"{durable}."
+        )
     elif durable_error is None:
         lines.append(
             f"The attempt record is in {durable}. {ledger} could not be updated "
