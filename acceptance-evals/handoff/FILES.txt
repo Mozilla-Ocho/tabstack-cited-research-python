@@ -47,6 +47,7 @@ A	acceptance-evals/examples/synthetic-run/reviews/coverage.csv
 A	acceptance-evals/examples/synthetic-run/reviews/decisions.csv
 A	acceptance-evals/examples/synthetic-run/reviews/usage.csv
 A	acceptance-evals/examples/synthetic-run/summary.json
+A	acceptance-evals/handoff/FILES.txt
 A	acceptance-evals/handoff/HANDOFF.md
 A	acceptance-evals/handoff/TEST-OUTPUT.txt
 A	acceptance-evals/handoff/failure-evidence/freeze-candidate-refused.txt
@@ -86,6 +87,6 @@ A	src/cited_research/accept/run.py
 A	src/cited_research/accept/summary.py
 M	src/cited_research/models.py
 M	src/cited_research/tabstack_runner.py
+M	src/cited_research/urls.py
 A	tests/acceptance_synth.py
 A	tests/test_accept.py
-A	acceptance-evals/handoff/FILES.txt
