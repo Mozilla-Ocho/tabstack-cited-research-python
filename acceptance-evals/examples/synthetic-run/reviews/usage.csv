@@ -1,0 +1,7 @@
+﻿run_id,attempt_id,question_id,terminal_status,usage_value,usage_unit,usage_source,usage_receipt_ref,notes
+synthetic-run,Q01-a1,Q01,complete,3,credits,,synthetic-receipt-1,
+synthetic-run,Q02-a1,Q02,complete,,,,,
+synthetic-run,Q03-a1,Q03,task_error,,,,,
+synthetic-run,Q03-a2,Q03,http_error,0,credits,,synthetic-receipt-2,
+synthetic-run,Q01-a2,Q01,complete,,,,,
+synthetic-run,Q02-a2,Q02,premature_close,,,,,

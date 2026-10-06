@@ -1,0 +1,25 @@
+$ uv run cited-research-accept validate --dataset acceptance-evals/questions.candidate.jsonl --for-run
+acceptance-evals/questions.candidate.jsonl: 20 questions; exact_contract 4, freshness_scope 4, limits_uncertainty 4, source_discovery 4, synthesis 4
+evidence: 1 reviewed, 19 pending
+sha256: 0c124f4e3e20d20fed4d821e9f273ddffb44a70eb4ec73b607f243f87940632f
+  line 1 (Q01): evidence_status is pending; not allowed in a live run
+  line 2 (Q02): evidence_status is pending; not allowed in a live run
+  line 3 (Q03): evidence_status is pending; not allowed in a live run
+  line 4 (Q04): evidence_status is pending; not allowed in a live run
+  line 6 (Q06): evidence_status is pending; not allowed in a live run
+  line 7 (Q07): evidence_status is pending; not allowed in a live run
+  line 8 (Q08): evidence_status is pending; not allowed in a live run
+  line 9 (Q09): evidence_status is pending; not allowed in a live run
+  line 10 (Q10): evidence_status is pending; not allowed in a live run
+  line 11 (Q11): evidence_status is pending; not allowed in a live run
+  line 12 (Q12): evidence_status is pending; not allowed in a live run
+  line 13 (Q13): evidence_status is pending; not allowed in a live run
+  line 14 (Q14): evidence_status is pending; not allowed in a live run
+  line 15 (Q15): evidence_status is pending; not allowed in a live run
+  line 16 (Q16): evidence_status is pending; not allowed in a live run
+  line 17 (Q17): evidence_status is pending; not allowed in a live run
+  line 18 (Q18): evidence_status is pending; not allowed in a live run
+  line 19 (Q19): evidence_status is pending; not allowed in a live run
+  line 20 (Q20): evidence_status is pending; not allowed in a live run
+INVALID: 19 issue(s)
+[exit 1]

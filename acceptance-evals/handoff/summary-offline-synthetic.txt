@@ -1,0 +1,32 @@
+OFFLINE FIXTURE (synthetic=true; fake client replaying tests/fixtures; no API call; review values set by tests/acceptance_synth.py)
+$ uv run cited-research-accept summarize --run acceptance-evals/examples/synthetic-run
+run synthetic-run  dataset synthetic-v1 (sha256 6f90407868d5...)
+provenance: 0 live scored, 0 pilot, 6 synthetic attempts (pilot and synthetic are excluded from live scored totals)
+questions: 3 intended, 3 attempted
+attempts: 6 total; complete 3, http_error 1, premature_close 1, task_error 1
+
+[live_scored] 0 attempts
+  responses: 0 completed, 0 fully reviewed, 0 accepted, 0 rejected, 0 unreviewed or undecided
+  accepted / attempts: unavailable (no attempts)
+  coverage elements: 0 full, 0 partial, 0 missing, 0 U, 0 blank; full over inspected: unavailable (nothing inspected)
+  claims: 0 supported, 0 partial, 0 unsupported, 0 U, 0 blank; supported over inspected: unavailable (nothing inspected); enumeration locked on 0 of 0 responses
+  usage: 0 known, 0 missing
+  cost per accepted answer: unavailable (no attempts in this scope)
+
+[synthetic] 6 attempts: complete 3, http_error 1, premature_close 1, task_error 1
+  responses: 3 completed, 2 fully reviewed, 1 accepted, 1 rejected, 1 unreviewed or undecided
+  accepted / attempts: 1/6
+  coverage elements: 2 full, 1 partial, 1 missing, 1 U, 1 blank; full over inspected: 2/4
+  claims: 2 supported, 1 partial, 1 unsupported, 0 U, 1 blank; supported over inspected: 2/4; enumeration locked on 2 of 3 responses
+  critical failure: Q02 Q02-a1 CF1: Invents a limit.
+  critical failure check not recorded: Q01-a2
+  timing Q01-a1 complete: first event 0 ms, terminal 2 ms
+  timing Q02-a1 complete: first event 0 ms, terminal 1 ms
+  timing Q03-a1 task_error: first event 0 ms, terminal 1 ms
+  timing Q03-a2 http_error: first event not measured, terminal 0 ms
+  timing Q01-a2 complete: first event 0 ms, terminal 2 ms
+  timing Q02-a2 premature_close: first event 0 ms, terminal 0 ms
+  usage: 2 known, 4 missing
+  cost per accepted answer: unavailable (usage missing for 4 of 6 attempts; 1 completed responses have no final accept/reject; 1 completed responses are not fully reviewed)
+summary -> acceptance-evals/examples/synthetic-run/summary.json
+[exit 0]

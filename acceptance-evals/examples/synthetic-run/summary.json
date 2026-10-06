@@ -1,0 +1,240 @@
+{
+  "attempts": {
+    "by_terminal_status": {
+      "complete": 3,
+      "http_error": 1,
+      "premature_close": 1,
+      "task_error": 1
+    },
+    "total": 6
+  },
+  "dataset_sha256": "6f90407868d5a7ae5fec1e131cefe2d055fae41a0766bbbccc72d89285d33ac8",
+  "dataset_version": "synthetic-v1",
+  "generated_at_utc": "2026-10-06T17:54:02.570Z",
+  "implementation_commit": "452aa44c63d110e85e0c71f3118b8a81ca80a293",
+  "provenance": {
+    "live_scored": 0,
+    "pilot": 0,
+    "synthetic": 6
+  },
+  "questions": {
+    "attempted": 3,
+    "attempted_ids": [
+      "Q01",
+      "Q02",
+      "Q03"
+    ],
+    "intended": 3
+  },
+  "run_id": "synthetic-run",
+  "schema": "cited-research-accept/summary/v1",
+  "scopes": {
+    "live_scored": {
+      "accepted_over_attempts": {
+        "reason": "no attempts",
+        "status": "unavailable"
+      },
+      "attempts": 0,
+      "by_terminal_status": {},
+      "claims": {
+        "U": 0,
+        "blank": 0,
+        "enumeration_locked": 0,
+        "enumeration_unlocked": 0,
+        "inspected": 0,
+        "partial": 0,
+        "supported": 0,
+        "supported_rate": {
+          "reason": "nothing inspected",
+          "status": "unavailable"
+        },
+        "unsupported": 0
+      },
+      "cost_per_accepted_answer": {
+        "reasons": [
+          "no attempts in this scope"
+        ],
+        "status": "unavailable"
+      },
+      "coverage": {
+        "U": 0,
+        "blank": 0,
+        "full": 0,
+        "full_rate": {
+          "reason": "nothing inspected",
+          "status": "unavailable"
+        },
+        "inspected": 0,
+        "missing": 0,
+        "partial": 0
+      },
+      "critical_failure_check_missing": [],
+      "critical_failures": [],
+      "failure_classes": [],
+      "responses": {
+        "accepted": 0,
+        "completed": 0,
+        "decision_conflicts": {},
+        "fully_reviewed": 0,
+        "open_review_items": {},
+        "rejected": 0,
+        "unreviewed_or_undecided": 0
+      },
+      "timing": [],
+      "usage": {
+        "known": [],
+        "missing": [],
+        "missing_count": 0
+      }
+    },
+    "synthetic": {
+      "accepted_over_attempts": {
+        "denominator": 6,
+        "numerator": 1,
+        "status": "available",
+        "value": 0.1667
+      },
+      "attempts": 6,
+      "by_terminal_status": {
+        "complete": 3,
+        "http_error": 1,
+        "premature_close": 1,
+        "task_error": 1
+      },
+      "claims": {
+        "U": 0,
+        "blank": 1,
+        "enumeration_locked": 2,
+        "enumeration_unlocked": 1,
+        "inspected": 4,
+        "partial": 1,
+        "supported": 2,
+        "supported_rate": {
+          "denominator": 4,
+          "numerator": 2,
+          "status": "available",
+          "value": 0.5
+        },
+        "unsupported": 1
+      },
+      "cost_per_accepted_answer": {
+        "reasons": [
+          "usage missing for 4 of 6 attempts",
+          "1 completed responses have no final accept/reject",
+          "1 completed responses are not fully reviewed"
+        ],
+        "status": "unavailable"
+      },
+      "coverage": {
+        "U": 1,
+        "blank": 1,
+        "full": 2,
+        "full_rate": {
+          "denominator": 4,
+          "numerator": 2,
+          "status": "available",
+          "value": 0.5
+        },
+        "inspected": 4,
+        "missing": 1,
+        "partial": 1
+      },
+      "critical_failure_check_missing": [
+        "Q01-a2"
+      ],
+      "critical_failures": [
+        {
+          "attempt_id": "Q02-a1",
+          "condition": "Invents a limit.",
+          "id": "CF1",
+          "question_id": "Q02"
+        }
+      ],
+      "failure_classes": [
+        "http_rejection",
+        "missing_terminal_event",
+        "stream_error_event"
+      ],
+      "responses": {
+        "accepted": 1,
+        "completed": 3,
+        "decision_conflicts": {},
+        "fully_reviewed": 2,
+        "open_review_items": {
+          "Q01-a2": [
+            "coverage has blank scores",
+            "coverage has U",
+            "claims have blank support",
+            "claim enumeration not locked",
+            "critical failure check not recorded"
+          ]
+        },
+        "rejected": 1,
+        "unreviewed_or_undecided": 1
+      },
+      "timing": [
+        {
+          "attempt_id": "Q01-a1",
+          "first_event_ms": 0,
+          "terminal_elapsed_ms": 2,
+          "terminal_status": "complete"
+        },
+        {
+          "attempt_id": "Q02-a1",
+          "first_event_ms": 0,
+          "terminal_elapsed_ms": 1,
+          "terminal_status": "complete"
+        },
+        {
+          "attempt_id": "Q03-a1",
+          "first_event_ms": 0,
+          "terminal_elapsed_ms": 1,
+          "terminal_status": "task_error"
+        },
+        {
+          "attempt_id": "Q03-a2",
+          "first_event_ms": null,
+          "terminal_elapsed_ms": 0,
+          "terminal_status": "http_error"
+        },
+        {
+          "attempt_id": "Q01-a2",
+          "first_event_ms": 0,
+          "terminal_elapsed_ms": 2,
+          "terminal_status": "complete"
+        },
+        {
+          "attempt_id": "Q02-a2",
+          "first_event_ms": 0,
+          "terminal_elapsed_ms": 0,
+          "terminal_status": "premature_close"
+        }
+      ],
+      "usage": {
+        "known": [
+          {
+            "attempt_id": "Q01-a1",
+            "receipt_ref": "synthetic-receipt-1",
+            "source": "",
+            "unit": "credits",
+            "value": 3.0
+          },
+          {
+            "attempt_id": "Q03-a2",
+            "receipt_ref": "synthetic-receipt-2",
+            "source": "",
+            "unit": "credits",
+            "value": 0.0
+          }
+        ],
+        "missing": [
+          "Q02-a1",
+          "Q03-a1",
+          "Q01-a2",
+          "Q02-a2"
+        ],
+        "missing_count": 4
+      }
+    }
+  }
+}

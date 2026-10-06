@@ -1,0 +1,3 @@
+What fields does Ollama's web-search API return for each result, and does its content field contain the full page?
+
+Answer from current public documentation and cite the sources you rely on. If the sources do not establish part of the answer, say which part.

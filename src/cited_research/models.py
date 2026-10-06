@@ -32,6 +32,10 @@ class SilenceTimeoutError(RuntimeError):
     """No event arrived within the client-side silence window."""
 
 
+class DeadlineExceededError(RuntimeError):
+    """The client-side overall deadline elapsed before a terminal event. The task may still run."""
+
+
 class ProtocolError(RuntimeError):
     """The stream broke the documented contract, e.g. a second terminal event."""
 
@@ -189,6 +193,7 @@ class RunManifest:
     fetch_timeout_seconds: Optional[int]
     started_at_utc: str
     silence_timeout_seconds: Optional[float] = None
+    deadline_seconds: Optional[float] = None
     completed_at_utc: Optional[str] = None
     duration_ms: Optional[int] = None
     first_event_ms: Optional[int] = None

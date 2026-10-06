@@ -1,0 +1,6 @@
+$ uv run cited-research-accept prepare-review --run acceptance-evals/runs/20261006-pilot-q05
+reviews/coverage.csv: 0 blank row(s) added, 3 existing row(s) kept as-is
+reviews/claims.csv: 0 blank row(s) added, 5 existing row(s) kept as-is
+reviews/decisions.csv: 0 blank row(s) added, 1 existing row(s) kept as-is
+reviews/usage.csv: 0 blank row(s) added, 1 existing row(s) kept as-is
+[exit 0]

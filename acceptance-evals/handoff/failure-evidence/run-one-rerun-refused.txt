@@ -1,0 +1,3 @@
+$ (dummy key, TABSTACK_BASE_URL=http://127.0.0.1:9) uv run cited-research-accept run-one --dataset acceptance-evals/pilot/questions.pilot-q05.jsonl --question Q05 --run acceptance-evals/runs/20261006-pilot-q05 --mode fast --nocache --silence-timeout 120 --deadline 300 --pilot
+refused: Q05 already has attempt(s) Q05-a1 in acceptance-evals/runs/20261006-pilot-q05; pass --another-attempt to record a new, separate attempt (never an overwrite)
+[exit 1]

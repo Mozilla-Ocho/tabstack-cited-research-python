@@ -1,0 +1,1 @@
+run_id,attempt_id,question_id,claim_id,answer_text,citation_ids,citation_present,source_url,passage,source_date_or_version,retrieved_at_utc,support,reason,reviewer,reviewed_at_utc,auto_flags

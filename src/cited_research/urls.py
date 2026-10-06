@@ -7,7 +7,19 @@ import re
 from typing import Optional, Tuple
 from urllib.parse import urlsplit
 
-PRIVATE_HOST_SUFFIXES = (".local", ".localhost", ".internal", ".lan", ".home", ".corp", ".intranet")
+PRIVATE_HOST_SUFFIXES = (
+    ".local",
+    ".localhost",
+    ".internal",
+    ".lan",
+    ".home",
+    ".home.arpa",
+    ".corp",
+    ".intranet",
+)
+# NAT64 well-known prefix (RFC 6052): addresses here map onto embedded IPv4 hosts, including
+# private ones, and `ipaddress` reports some of them as global.
+NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
 # Browsers resolve shorthand, hex and octal IPv4 forms (127.1, 0x7f.1, 0177.0.0.1) that
 # `ipaddress` rejects. A TLD cannot be all-numeric (RFC 3696), so a host whose last label is
 # all digits is an address, and a hex label is never a real hostname. All-digit labels elsewhere
@@ -49,7 +61,7 @@ def check_public_url(url: object) -> Tuple[bool, Optional[str]]:
         if labels[-1].isdigit() or any(HEX_LABEL.match(label) for label in labels):
             return False, "numeric_hostname"
         return True, None
-    if not ip.is_global:
+    if not ip.is_global or (ip.version == 6 and ip in NAT64_PREFIX):
         return False, "non_public_ip"
     return True, None
 

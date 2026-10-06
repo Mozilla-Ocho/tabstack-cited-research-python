@@ -1,0 +1,2 @@
+{"elapsed_ms": 0, "event": "start", "known_event": true, "message": "Starting research", "received_at_utc": "2026-10-06T17:49:35.360Z", "seq": 1, "timestamp_raw": 1789420000000.0, "timestamp_type": "float"}
+{"cited_page_count": 0, "elapsed_ms": 0, "event": "complete", "known_event": true, "message": "Research complete", "pages_analyzed": 0.0, "received_at_utc": "2026-10-06T17:49:35.360Z", "report_chars": 27, "seq": 2, "timestamp_raw": 1789420009100.0, "timestamp_type": "float"}

@@ -1,0 +1,22 @@
+$ uv run cited-research-accept freeze --dataset acceptance-evals/questions.candidate.jsonl --version candidate-v1
+  line 1 (Q01): evidence_status is pending; not allowed in a live run
+  line 2 (Q02): evidence_status is pending; not allowed in a live run
+  line 3 (Q03): evidence_status is pending; not allowed in a live run
+  line 4 (Q04): evidence_status is pending; not allowed in a live run
+  line 6 (Q06): evidence_status is pending; not allowed in a live run
+  line 7 (Q07): evidence_status is pending; not allowed in a live run
+  line 8 (Q08): evidence_status is pending; not allowed in a live run
+  line 9 (Q09): evidence_status is pending; not allowed in a live run
+  line 10 (Q10): evidence_status is pending; not allowed in a live run
+  line 11 (Q11): evidence_status is pending; not allowed in a live run
+  line 12 (Q12): evidence_status is pending; not allowed in a live run
+  line 13 (Q13): evidence_status is pending; not allowed in a live run
+  line 14 (Q14): evidence_status is pending; not allowed in a live run
+  line 15 (Q15): evidence_status is pending; not allowed in a live run
+  line 16 (Q16): evidence_status is pending; not allowed in a live run
+  line 17 (Q17): evidence_status is pending; not allowed in a live run
+  line 18 (Q18): evidence_status is pending; not allowed in a live run
+  line 19 (Q19): evidence_status is pending; not allowed in a live run
+  line 20 (Q20): evidence_status is pending; not allowed in a live run
+not frozen: 19 issue(s)
+[exit 1]

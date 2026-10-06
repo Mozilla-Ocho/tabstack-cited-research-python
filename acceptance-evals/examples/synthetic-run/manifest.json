@@ -1,0 +1,37 @@
+{
+  "config": {
+    "application_retries": 0,
+    "dataset_file": "synthetic-dataset.jsonl",
+    "dataset_sha256": "6f90407868d5a7ae5fec1e131cefe2d055fae41a0766bbbccc72d89285d33ac8",
+    "dataset_version": "synthetic-v1",
+    "deadline_seconds": null,
+    "fetch_timeout_seconds": null,
+    "mode": "fast",
+    "nocache": false,
+    "output_instruction": "Answer from current public documentation and cite the sources you rely on. If the sources do not establish part of the answer, say which part.",
+    "pilot_only": false,
+    "retry_policy": "SDK max_retries=0; no application retries; one POST per attempt",
+    "sdk_max_retries": 0,
+    "silence_timeout_seconds": null,
+    "synthetic": true
+  },
+  "created_at_utc": "2026-10-06T17:49:35.235Z",
+  "dataset_path": "../synthetic-dataset.jsonl",
+  "freeze_sha256": "7f543de83b9860f474410c67dce6206fd65de3f55ed7a059ac4462b9fe2a924d",
+  "implementation_commit": "452aa44c63d110e85e0c71f3118b8a81ca80a293",
+  "implementation_dirty": false,
+  "intended_question_ids": [
+    "Q01",
+    "Q02",
+    "Q03"
+  ],
+  "notes": [
+    "pilot_only and synthetic attempts are excluded from live scored totals.",
+    "A client timeout ends the wait; it does not establish provider cancellation."
+  ],
+  "os": "Darwin 25.6.0 arm64",
+  "python_version": "3.12.13",
+  "run_id": "synthetic-run",
+  "schema": "cited-research-accept/run/v1",
+  "tabstack_version": "2.8.5"
+}

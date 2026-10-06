@@ -1,0 +1,8 @@
+gate,evidence_to_attach,decision_to_record,status,owner,evidence_ref,decided_at_utc,notes
+Scope and acceptance,Workflow contract and critical failure rules,What the feature handles and refuses,,,,,
+Answer quality,Coverage review and inspected claim support,Which outputs the application accepts,,,,,
+Operational completion,Attempt ledger and failure fixtures,How failures remain contained,,,,,
+Time budget,Client timing and deadline tests,Whether the interaction meets the product requirement,,,,,
+Cost,Matched usage records and limits,Whether the workload fits its budget,,,,,
+Data and security,Processing map and reviewed controls,Whether the architecture meets the requirements,,,,,
+Ownership and rollback,"Runbook, owner, and disable-path test",Who acts when behavior changes,,,,,

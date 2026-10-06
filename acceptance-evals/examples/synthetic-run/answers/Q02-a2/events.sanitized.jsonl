@@ -1,0 +1,2 @@
+{"elapsed_ms": 0, "event": "start", "known_event": true, "message": "Starting research", "received_at_utc": "2026-10-06T17:49:35.512Z", "seq": 1, "timestamp_raw": 1789420000000.0, "timestamp_type": "float"}
+{"elapsed_ms": 0, "event": "searching:start", "iteration": 1.0, "known_event": true, "message": "Searching", "received_at_utc": "2026-10-06T17:49:35.512Z", "seq": 2, "timestamp_raw": 1789420001200.0, "timestamp_type": "float"}
