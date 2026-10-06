@@ -58,6 +58,7 @@ FAILURE_CLASS = {
     "deadline_exceeded": "client_timeout_deadline",
     "unexpected_error": "unexpected_error",
     "in_progress": "no_terminal_record",
+    "outcome_unrecorded": "post_request_recording_failed",
 }
 CLIENT_STOPPED = frozenset({"silence_timeout", "deadline_exceeded", "stream_transport_error"})
 
@@ -148,7 +149,17 @@ def _implementation_dirty(package_dir: Path = PACKAGE_DIR) -> Optional[bool]:
         return None
     try:
         out = subprocess.run(
-            ["git", "status", "--porcelain", "--", "src", "pyproject.toml", "uv.lock"],
+            [
+                "git",
+                "status",
+                "--porcelain",
+                "--untracked-files=all",
+                "--ignored=no",
+                "--",
+                "src",
+                "pyproject.toml",
+                "uv.lock",
+            ],
             cwd=root,
             capture_output=True,
             text=True,
@@ -251,6 +262,30 @@ def lock_with_retry(
 LOCK_NAME = ".attempts.lock"
 
 
+def _acquire(fh: Any) -> None:
+    if sys.platform == "win32":  # pragma: no cover - exercised on Windows only
+        import msvcrt
+
+        fh.seek(0)
+        lock_with_retry(lambda: msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1))  # pyright: ignore
+    else:
+        import fcntl
+
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+
+
+def _release(fh: Any) -> None:
+    if sys.platform == "win32":  # pragma: no cover - exercised on Windows only
+        import msvcrt
+
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)  # pyright: ignore
+    else:
+        import fcntl
+
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
 @contextmanager
 def ledger_lock(run_dir: Path) -> Iterator[None]:
     """Exclusive lock around a read-modify-write of attempts.jsonl (and the run manifest).
@@ -258,29 +293,32 @@ def ledger_lock(run_dir: Path) -> Iterator[None]:
     An OS-level lock on a sidecar file (fcntl.flock on POSIX, msvcrt.locking on Windows), so a
     crashed process never leaves a stale lock. Parallel run-one processes on one run directory
     take turns; nothing waits on the network while holding it.
+
+    Every OSError while creating the directory, opening the lock file, or taking the lock
+    becomes LedgerLockError, on both platforms. Errors raised inside the `with` body are not
+    converted. A failed unlock is ignored: closing the file releases the lock.
     """
-    run_dir.mkdir(parents=True, exist_ok=True)
-    with (run_dir / LOCK_NAME).open("a+b") as fh:
-        if sys.platform == "win32":  # pragma: no cover - exercised on Windows only
-            import msvcrt
-
-            fh.seek(0)
-            lock_with_retry(
-                lambda: msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # pyright: ignore
-            )
+    try:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        fh = (run_dir / LOCK_NAME).open("a+b")
+    except OSError as exc:
+        raise LedgerLockError(f"cannot open the run ledger lock: {exc}") from exc
+    try:
+        try:
+            _acquire(fh)
+        except LedgerLockError:
+            raise
+        except OSError as exc:
+            raise LedgerLockError(f"cannot lock the run ledger: {exc}") from exc
+        try:
+            yield
+        finally:
             try:
-                yield
-            finally:
-                fh.seek(0)
-                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)  # pyright: ignore
-        else:
-            import fcntl
-
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+                _release(fh)
+            except OSError:
+                pass
+    finally:
+        fh.close()
 
 
 ATTEMPT_RECORD = "attempt.json"
@@ -288,29 +326,66 @@ EXIT_LEDGER_NOT_UPDATED = 13
 RECOVERED_NOTE = "ledger_recovered_from"
 
 
+class LedgerCorrupt(ValueError):
+    """attempts.jsonl holds a line that is not a JSON object."""
+
+
 def read_attempts(run_dir: Path) -> List[Dict[str, Any]]:
     """The ledger, with any attempt still `in_progress` there replaced by its terminal record in
-    answers/<attempt-id>/attempt.json when one exists (the ledger update failed after the
-    request finished). Such records carry `ledger_recovered_from`."""
+    answers/<attempt-id>/attempt.json when one exists and is readable (the ledger update failed
+    after the request finished). Such records carry `ledger_recovered_from`. Raises
+    LedgerCorrupt naming the line when attempts.jsonl itself is not valid."""
     path = run_dir / "attempts.jsonl"
     if not path.exists():
         return []
-    rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
     out: List[Dict[str, Any]] = []
-    for row in rows:
-        if row.get("terminal_status") == "in_progress" and row.get("answer_dir"):
+    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise LedgerCorrupt(f"{path} line {n} is not valid JSON ({exc.msg})") from None
+        if not isinstance(row, dict) or not isinstance(row.get("attempt_id"), str):
+            raise LedgerCorrupt(f"{path} line {n} is not an attempt record")
+        if row.get("terminal_status") == "in_progress" and isinstance(row.get("answer_dir"), str):
             durable = run_dir / row["answer_dir"] / ATTEMPT_RECORD
             if durable.exists():
-                row = json.loads(durable.read_text(encoding="utf-8"))
-                row[RECOVERED_NOTE] = f"{row['answer_dir']}/{ATTEMPT_RECORD}"
+                try:
+                    recovered = json.loads(durable.read_text(encoding="utf-8"))
+                except (OSError, ValueError) as exc:
+                    row = dict(row)
+                    row.setdefault("missing_data", [])
+                    row["missing_data"] = [
+                        *row["missing_data"],
+                        f"{row['answer_dir']}/{ATTEMPT_RECORD} exists but is unreadable ({exc})",
+                    ]
+                else:
+                    if (
+                        isinstance(recovered, dict)
+                        and recovered.get("attempt_id") == row["attempt_id"]
+                    ):
+                        row = recovered
+                        row[RECOVERED_NOTE] = f"{row['answer_dir']}/{ATTEMPT_RECORD}"
         out.append(row)
     return out
 
 
+HEALED_NOTE = "ledger entry restored from attempt.json after a failed ledger update"
+
+
 def write_attempts(run_dir: Path, attempts: List[Dict[str, Any]]) -> None:
+    """Write the ledger. A recovered row becomes an ordinary row: `ledger_recovered_from` is
+    dropped (the ledger is now correct) and a missing_data note keeps the history."""
+    rows: List[Dict[str, Any]] = []
+    for a in attempts:
+        if RECOVERED_NOTE in a:
+            a = {k: v for k, v in a.items() if k != RECOVERED_NOTE}
+            a["missing_data"] = [*(a.get("missing_data") or []), HEALED_NOTE]
+        rows.append(a)
     write_text_atomic(
         run_dir / "attempts.jsonl",
-        "".join(json.dumps(a, ensure_ascii=False, sort_keys=True) + "\n" for a in attempts),
+        "".join(json.dumps(a, ensure_ascii=False, sort_keys=True) + "\n" for a in rows),
     )
 
 
@@ -414,29 +489,143 @@ def run_one(
         raise RunRefused(f"cannot identify the implementation, so nothing was sent: {exc}") from exc
     # Provenance only; the comparison uses impl_sha. None means git was unavailable or failed.
     commit, dirty = _git_commit(), _implementation_dirty()
+    # ---- Phase 1, before the request. Any failure here means nothing was sent: it ends as
+    # RunRefused (exit 1) and never leaves a reserved attempt directory behind.
+    answer_dir: Optional[Path] = None
     try:
-        lock = ledger_lock(run_dir)
-        lock.__enter__()
-    except LedgerLockError as exc:
-        raise RunRefused(f"{exc}; nothing was sent") from exc
-    try:
-        manifest, attempts, attempt_id, answer_dir = _reserve_attempt(
+        with ledger_lock(run_dir):
+            manifest, _, attempt_id, answer_dir = _reserve_attempt(
+                run_dir,
+                dataset_path,
+                freeze_path,
+                freeze,
+                config,
+                impl_sha,
+                impl_paths,
+                commit,
+                dirty,
+                question_id,
+                another_attempt,
+            )
+        rel = answer_dir.relative_to(run_dir).as_posix()
+        query = f"{question['question']}\n\n{freeze['output_instruction']}"
+        record = _initial_record(
+            attempt_id,
             run_dir,
-            dataset_path,
-            freeze_path,
+            question_id,
+            question,
             freeze,
-            config,
+            ds,
             impl_sha,
-            impl_paths,
             commit,
             dirty,
-            question_id,
-            another_attempt,
+            mode,
+            nocache,
+            silence_timeout,
+            deadline,
+            query,
+            rel,
+            pilot_only,
+            synthetic,
         )
-    finally:
-        lock.__exit__(None, None, None)
-    query = f"{question['question']}\n\n{freeze['output_instruction']}"
-    rel = answer_dir.relative_to(run_dir).as_posix()
+        # Recorded before the request, so a crash leaves a visible in_progress attempt. Re-read
+        # under the lock so a parallel process's record is never dropped.
+        with ledger_lock(run_dir):
+            write_attempts(run_dir, [*read_attempts(run_dir), record])
+    except BaseException as exc:
+        if answer_dir is not None:
+            _remove_if_empty(answer_dir)
+        if isinstance(exc, RunRefused) or not isinstance(exc, Exception):
+            raise
+        raise RunRefused(f"{type(exc).__name__}: {exc}; nothing was sent") from exc
+
+    # ---- Phase 2 and 3: the request has been (or is being) sent. From here on, every failure
+    # ends as the post-request outcome: the terminal record is kept in attempt.json, the exit is
+    # 13, and the message says the request was sent. Never "refused", never a traceback.
+    kwargs: Dict[str, Any] = {}
+    if post_terminal_grace is not None:
+        kwargs["post_terminal_grace"] = post_terminal_grace
+    code: Optional[int] = None
+    failure: Optional[BaseException] = None
+    try:
+        code = run_research(
+            query=query,
+            mode=mode,
+            nocache=nocache,
+            fetch_timeout=fetch_timeout,
+            output_dir=answer_dir,
+            quiet=quiet,
+            stdout=stdout,
+            client_factory=client_factory,
+            silence_timeout=silence_timeout,
+            deadline=deadline,
+            **kwargs,
+        )
+        _finish_record(record, answer_dir, rel, code)
+    except BaseException as exc:  # recorded, then re-raised if it is not an Exception
+        failure = exc
+        _mark_unrecorded(record, exc, code)
+    durable_error = _write_durable(answer_dir, record)
+    ledger_error: Optional[BaseException] = None
+    try:
+        with ledger_lock(run_dir):
+            current = read_attempts(run_dir)
+            if not any(a.get("attempt_id") == attempt_id for a in current):
+                current.append(record)
+            write_attempts(
+                run_dir, [record if a.get("attempt_id") == attempt_id else a for a in current]
+            )
+    except Exception as exc:
+        ledger_error = exc
+    if failure is not None or durable_error is not None or ledger_error is not None:
+        _report_post_request_failure(
+            attempt_id, record, code, run_dir, answer_dir, failure, durable_error, ledger_error
+        )
+        if failure is not None and not isinstance(failure, Exception):
+            raise failure
+        return EXIT_LEDGER_NOT_UPDATED
+    try:
+        if not quiet:
+            stdout.write(
+                f"attempt {attempt_id}: {record['terminal_status']} (exit {code}), "
+                f"{record['source_count'] if record['source_count'] is not None else 'no'} "
+                f"sources -> {run_dir / 'attempts.jsonl'}\n"
+            )
+            if record["terminal_status"] == "complete":
+                stdout.write(f"next: cited-research-accept prepare-review --run {run_dir}\n")
+            stdout.flush()
+    except OSError:
+        pass  # the outcome is already recorded; a closed stdout cannot change it
+    assert code is not None
+    return code
+
+
+def _remove_if_empty(path: Path) -> None:
+    try:
+        path.rmdir()
+    except OSError:
+        pass
+
+
+def _initial_record(
+    attempt_id: str,
+    run_dir: Path,
+    question_id: str,
+    question: Dict[str, Any],
+    freeze: Dict[str, Any],
+    ds: Dataset,
+    impl_sha: str,
+    commit: Optional[str],
+    dirty: Optional[bool],
+    mode: str,
+    nocache: bool,
+    silence_timeout: Optional[float],
+    deadline: Optional[float],
+    query: str,
+    rel: str,
+    pilot_only: bool,
+    synthetic: bool,
+) -> Dict[str, Any]:
     record: Dict[str, Any] = dict.fromkeys(ATTEMPT_COLUMNS)
     record.update(
         schema=ATTEMPT_SCHEMA,
@@ -472,66 +661,78 @@ def run_one(
         review_status="not_applicable",
         missing_data=["process ended before the attempt recorded a terminal state"],
     )
-    # Recorded before the request, so a crash leaves a visible in_progress attempt. The lock was
-    # released after reserving; re-read so a parallel process's record is never dropped.
-    try:
-        with ledger_lock(run_dir):
-            write_attempts(run_dir, [*read_attempts(run_dir), record])
-    except LedgerLockError as exc:
-        answer_dir.rmdir()  # still empty: nothing has been sent
-        raise RunRefused(f"{exc}; nothing was sent") from exc
+    return record
 
-    kwargs: Dict[str, Any] = {}
-    if post_terminal_grace is not None:
-        kwargs["post_terminal_grace"] = post_terminal_grace
-    code = run_research(
-        query=query,
-        mode=mode,
-        nocache=nocache,
-        fetch_timeout=fetch_timeout,
-        output_dir=answer_dir,
-        quiet=quiet,
-        stdout=stdout,
-        client_factory=client_factory,
-        silence_timeout=silence_timeout,
-        deadline=deadline,
-        **kwargs,
+
+def _mark_unrecorded(record: Dict[str, Any], exc: BaseException, code: Optional[int]) -> None:
+    """The request went out but its outcome could not be read or recorded."""
+    what = scrub_text(f"{type(exc).__name__}: {exc}")
+    record.update(
+        terminal_status="outcome_unrecorded",
+        failure_class=FAILURE_CLASS["outcome_unrecorded"],
+        exit_code=code,
+        error=("the request was sent" if code is not None else "the request may have been sent")
+        + f"; recording its outcome failed: {what}",
+        provider_task_state="unknown",
+        review_status="not_applicable",
+        terminal_at_utc=utc_now_iso(),
+        missing_data=[
+            "request sent; outcome not recorded by the client (see error)",
+            "usage unavailable",
+        ],
     )
-    _finish_record(record, answer_dir, rel, code)
-    # Durable copy of the terminal record before touching the shared ledger: if the ledger
-    # update fails, read_attempts recovers the outcome from here instead of leaving the attempt
-    # silently in_progress.
-    write_text_atomic(
-        answer_dir / ATTEMPT_RECORD, json.dumps(record, indent=2, sort_keys=True) + "\n"
-    )
-    # Re-read under the lock: another process may have appended attempts while this one ran.
+
+
+def _write_durable(answer_dir: Path, record: Dict[str, Any]) -> Optional[BaseException]:
     try:
-        with ledger_lock(run_dir):
-            current = read_attempts(run_dir)
-            if not any(a.get("attempt_id") == attempt_id for a in current):
-                current.append(record)
-            write_attempts(
-                run_dir, [record if a.get("attempt_id") == attempt_id else a for a in current]
-            )
-    except LedgerLockError as exc:
-        sys.stderr.write(
-            f"attempt {attempt_id} finished with status {record['terminal_status']} "
-            f"(exit {code}), but {run_dir / 'attempts.jsonl'} could not be updated: {exc}.\n"
-            f"The terminal record is in {answer_dir / ATTEMPT_RECORD}; summarize and the next "
-            "run-one read it from there and report the attempt as recovered. Do not re-run the "
-            "request to fix the ledger.\n"
+        write_text_atomic(
+            answer_dir / ATTEMPT_RECORD, json.dumps(record, indent=2, sort_keys=True) + "\n"
         )
-        return EXIT_LEDGER_NOT_UPDATED
-    if not quiet:
-        stdout.write(
-            f"attempt {attempt_id}: {record['terminal_status']} (exit {code}), "
-            f"{record['source_count'] if record['source_count'] is not None else 'no'} sources "
-            f"-> {run_dir / 'attempts.jsonl'}\n"
+    except Exception as exc:
+        return exc
+    return None
+
+
+def _report_post_request_failure(
+    attempt_id: str,
+    record: Dict[str, Any],
+    code: Optional[int],
+    run_dir: Path,
+    answer_dir: Path,
+    failure: Optional[BaseException],
+    durable_error: Optional[BaseException],
+    ledger_error: Optional[BaseException],
+) -> None:
+    if failure is not None and code is None:
+        # The runner raised instead of returning: it may have failed before opening the request.
+        lines = [f"attempt {attempt_id}: the request may have been sent (the runner failed)."]
+    else:
+        lines = [f"attempt {attempt_id}: the request was sent."]
+    if failure is None:
+        lines.append(f"It finished with status {record['terminal_status']} (exit {code}).")
+    else:
+        lines.append(
+            "Its outcome could not be recorded "
+            f"({scrub_text(type(failure).__name__ + ': ' + str(failure))}); status "
+            "outcome_unrecorded."
         )
-        if record["terminal_status"] == "complete":
-            stdout.write(f"next: cited-research-accept prepare-review --run {run_dir}\n")
-        stdout.flush()
-    return code
+    if durable_error is None:
+        lines.append(f"The attempt record is in {answer_dir / ATTEMPT_RECORD}.")
+    else:
+        lines.append(
+            f"{answer_dir / ATTEMPT_RECORD} could not be written ({durable_error}); the files "
+            f"in {answer_dir} are what remains."
+        )
+    if ledger_error is not None:
+        lines.append(
+            f"{run_dir / 'attempts.jsonl'} could not be updated ({ledger_error}); summarize and "
+            "the next run-one read the attempt record and report it as recovered."
+        )
+    lines.append("Do not re-run the request to repair the records.")
+    try:
+        sys.stderr.write(" ".join(lines) + "\n")
+    except OSError:
+        pass
 
 
 def _reserve_attempt(
@@ -557,6 +758,19 @@ def _reserve_attempt(
             raise RunRefused(
                 f"{run_dir} was started with a different configuration ({', '.join(changed)}); "
                 "start a new run directory"
+            )
+        runtime = {
+            "python_version": platform.python_version(),
+            "tabstack_version": tabstack.__version__,
+        }
+        differs = [
+            f"{k} {manifest.get(k)} -> {v}" for k, v in runtime.items() if manifest.get(k) != v
+        ]
+        if differs:
+            raise RunRefused(
+                f"{run_dir} was started with a different runtime ({'; '.join(differs)}); every "
+                "attempt in a run must use the same Python and tabstack SDK; start a new run "
+                "directory"
             )
         recorded = manifest.get("implementation_sha256")
         if recorded is None:

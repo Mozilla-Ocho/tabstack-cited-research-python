@@ -29,7 +29,9 @@ recorded date. Nothing here measures typical latency, cost, accuracy, or reliabi
   commit check, ledger lock), then the second-review fixes (content-hash implementation
   identity instead of HEAD, bounded Windows lock retry, flag wording), then the third-review
   fixes (dirty check from the repo root, identity hashes only package file types, clean lock
-  errors with a durable `attempt.json`); the pilot artifacts and review sheets are byte-identical after them, and
+  errors with a durable `attempt.json`), then the fourth-review fixes (one explicit boundary
+  between "nothing was sent" and "the request was sent", every lock OSError handled, runtime
+  versions compared, recovered rows healed); the pilot artifacts and review sheets are byte-identical after them, and
   `summarize` output on the pilot is unchanged except `generated_at_utc`.
 - Changed files: `FILES.txt` in this folder (`git diff --name-status` against `origin/main`).
 
@@ -92,8 +94,8 @@ from `uv.lock`, which is unchanged from `origin/main`. Offline tests also pass o
 
 ## 4. Offline test receipt and fixtures
 
-`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 209 passed
-(116 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 209 passed.
+`TEST-OUTPUT.txt`: ruff check, ruff format --check, pyright (standard), pytest: 227 passed
+(134 in `tests/test_accept.py`, 93 pre-existing). Python 3.9.6: 227 passed.
 
 Fixtures: `tests/fixtures/*.jsonl` replayed through the SDK's own `ResearchEvent` model
 (`complete-events`, `complete-ordered-sources`, `complete-no-cited-pages`,
@@ -183,6 +185,9 @@ in the table in `../README.md` is exercised offline through `run-one` except
   trace path's `read_sheet`, tested there, not with these sheets).
 - Whether the service cancels a task after a client timeout.
 - The Windows `msvcrt` lock path (its retry policy is unit-tested with injected errors only).
+- Post-request failure paths (exit 13) are exercised with injected faults (lock OSError, corrupt
+  ledger, deleted per-request manifest, runner exception, interrupt); none occurred live. A hard
+  kill (SIGKILL, power loss) still leaves the pre-request `in_progress` line, by design.
 - The committed pilot run predates `implementation_sha256`, so `run-one` refuses any new attempt
   in it (by design); new runs record it.
 

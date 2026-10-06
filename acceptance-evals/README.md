@@ -121,9 +121,10 @@ failure class, ordered source URLs, artifact paths, `usage_status`, `pilot_only`
 review status, and missing-data notes. An attempt is written as `in_progress` before the request
 and updated after, so a crash leaves a visible record. The terminal record is also written to
 `answers/<attempt-id>/attempt.json` before the ledger update; if that update fails (the ledger
-lock cannot be taken), `run-one` exits 13 and says so, and `summarize` and the next `run-one`
-read the outcome from `attempt.json` and report the attempt as recovered rather than leaving it
-`in_progress`. Do not re-run the request to repair the ledger.
+lock cannot be taken), `run-one` exits 13 and says so, and `summarize` reports the attempt as
+recovered from `attempt.json` rather than leaving it `in_progress`. The next `run-one` writes it
+back into the ledger, after which it is an ordinary row (with a `missing_data` note) and no
+longer reported as recovered. Do not re-run the request to repair the ledger.
 
 The committed pilot's `implementation_dirty: false` was recorded by a check later found to
 always report clean (it ran git from inside the package directory); see
@@ -142,9 +143,18 @@ always report clean (it ran git from inside the package directory); see
 | `malformed_complete` | `malformed_complete` | 10 |
 | `unexpected_error` | `unexpected_error` | 11 |
 | `deadline_exceeded` | `client_timeout_deadline` | 12 |
+| `outcome_unrecorded` | `post_request_recording_failed` | 13 |
 
-`run-one` also exits 5 when `TABSTACK_API_KEY` is unset, 1 when it refuses (nothing is sent),
-and 13 when the request finished but the ledger could not be updated. A client timeout
+`run-one` also exits 5 when `TABSTACK_API_KEY` is unset and 1 when it refuses; every exit-1
+refusal happens before the request, and its message says nothing was sent. Once the request
+has been handed to the runner, no failure is reported as a refusal: if the outcome or the
+ledger cannot be recorded (lock error, unreadable ledger, missing per-request manifest, a
+runner exception, an interrupt), `run-one` keeps what it can in
+`answers/<attempt-id>/attempt.json`, exits 13 (an interrupt is recorded, then re-raised), and
+says the request was sent, or may have been sent if the runner failed before returning.
+`outcome_unrecorded` marks an attempt whose result the client could not read. A run directory
+also refuses new attempts when the Python or tabstack SDK version differs from the one that
+started it. A client timeout
 or mid-stream transport failure sets `client_stopped_waiting: true` and
 `provider_task_state: "unknown"`: the client stopped waiting, which does not establish that the
 service cancelled the task.

@@ -819,9 +819,14 @@ def test_a_crash_mid_request_leaves_a_visible_attempt(
     with pytest.raises(KeyboardInterrupt):
         attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
     (a,) = _attempts(run)
-    assert a["terminal_status"] == "in_progress" and a["failure_class"] == "no_terminal_record"
+    # Interrupted mid-request: recorded as outcome_unrecorded (not silently in_progress), then
+    # the interrupt is re-raised. Only a hard kill leaves the pre-request in_progress line.
+    assert a["terminal_status"] == "outcome_unrecorded"
+    assert a["failure_class"] == "post_request_recording_failed"
+    assert "the request may have been sent" in a["error"]
+    assert (run / "answers" / "Q01-a1" / "attempt.json").exists()
     b = summarize(run)["scopes"]["synthetic"]
-    assert b["attempts"] == 1 and b["by_terminal_status"] == {"in_progress": 1}
+    assert b["attempts"] == 1 and b["by_terminal_status"] == {"outcome_unrecorded": 1}
     assert b["accepted_over_attempts"]["denominator"] == 1
 
 
@@ -1403,3 +1408,248 @@ def test_cli_turns_a_lock_error_into_a_clean_refusal(
     argv = ["run-one", "--dataset", str(PILOT), "--question", "Q05", "--run", str(tmp_path / "r")]
     assert cli.main(argv) == 1
     assert capsys.readouterr().err.startswith("refused: cannot lock the run ledger")
+
+
+# --- review fixes, round 5: one boundary between "nothing was sent" and "the request was sent" ---
+
+
+def _patch_lock_open_error(monkeypatch: pytest.MonkeyPatch, on_call: int, exc: OSError) -> None:
+    import cited_research.accept.run as run_mod
+
+    real_acquire = run_mod._acquire
+    count = {"n": 0}
+
+    def acquire(fh: Any) -> None:
+        count["n"] += 1
+        if count["n"] == on_call:
+            raise exc
+        real_acquire(fh)
+
+    monkeypatch.setattr(run_mod, "_acquire", acquire)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [PermissionError(13, "Permission denied"), OSError(37, "No locks available")],
+)
+def test_posix_lock_oserrors_become_ledger_lock_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, exc: OSError
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    _patch_lock_open_error(monkeypatch, 1, exc)
+    with pytest.raises(run_mod.LedgerLockError, match="cannot lock the run ledger"):
+        with run_mod.ledger_lock(tmp_path / "run"):
+            pass
+
+
+def test_lock_file_open_error_is_a_ledger_lock_error(tmp_path: Path) -> None:
+    import cited_research.accept.run as run_mod
+
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / run_mod.LOCK_NAME).mkdir()  # cannot be opened as a file
+    with pytest.raises(run_mod.LedgerLockError, match="cannot open the run ledger lock"):
+        with run_mod.ledger_lock(run):
+            pass
+
+
+def test_errors_inside_the_lock_body_are_not_relabelled(tmp_path: Path) -> None:
+    import cited_research.accept.run as run_mod
+
+    with pytest.raises(FileNotFoundError):
+        with run_mod.ledger_lock(tmp_path / "run"):
+            raise FileNotFoundError("body error")
+
+
+@pytest.mark.parametrize("call", [1, 2])
+def test_pre_request_lock_oserror_refuses_and_sends_nothing(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch, call: int
+) -> None:
+    _patch_lock_open_error(monkeypatch, call, PermissionError(13, "Permission denied"))
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    run = tmp_path / "run"
+    with pytest.raises(RunRefused, match="nothing was sent"):
+        attempt(synth_dataset, run, "Q01", lambda: client)
+    assert client.agent.calls == [] and not (run / "answers" / "Q01-a1").exists()
+
+
+def _post_request_failure_case(name: str, run: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import cited_research.accept.run as run_mod
+
+    if name == "lock_oserror":
+        _patch_lock_open_error(monkeypatch, 3, OSError(37, "No locks available"))
+    elif name == "corrupt_ledger":
+        real = run_mod.run_research
+
+        def corrupts(**kw: Any) -> int:
+            code = real(**kw)
+            (run / "attempts.jsonl").write_text("{not json\n")
+            return code
+
+        monkeypatch.setattr(run_mod, "run_research", corrupts)
+    elif name == "missing_request_manifest":
+        real = run_mod.run_research
+
+        def loses_manifest(**kw: Any) -> int:
+            code = real(**kw)
+            (kw["output_dir"] / "run-manifest.json").unlink()
+            return code
+
+        monkeypatch.setattr(run_mod, "run_research", loses_manifest)
+    elif name == "runner_raises":
+
+        def raises(**_: Any) -> int:
+            raise OSError(28, "No space left on device")
+
+        monkeypatch.setattr(run_mod, "run_research", raises)
+
+
+@pytest.mark.parametrize(
+    "case, status",
+    [
+        ("lock_oserror", "complete"),
+        ("corrupt_ledger", "complete"),
+        ("missing_request_manifest", "outcome_unrecorded"),
+        ("runner_raises", "outcome_unrecorded"),
+    ],
+)
+def test_every_post_request_failure_is_exit_13_with_the_record_kept(
+    tmp_path: Path,
+    synth_dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    case: str,
+    status: str,
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    run = tmp_path / "run"
+    _post_request_failure_case(case, run, monkeypatch)
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    code = attempt(synth_dataset, run, "Q01", lambda: client)
+    assert code == run_mod.EXIT_LEDGER_NOT_UPDATED
+    err = capsys.readouterr().err
+    sent = "the request may have been sent" if case == "runner_raises" else "the request was sent"
+    assert sent in err and "Do not re-run the request" in err
+    assert "refused" not in err and "nothing was sent" not in err
+    durable = json.loads((run / "answers" / "Q01-a1" / "attempt.json").read_text())
+    assert durable["terminal_status"] == status
+    assert "attempt.json" in err
+
+
+def test_post_request_failure_through_the_cli_is_exit_13_not_refused(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+
+    _patch_lock_open_error(monkeypatch, 3, OSError(37, "No locks available"))
+    monkeypatch.setenv("TABSTACK_API_KEY", "sk_test_not_a_real_key_000000")
+    real = cli.run_one
+
+    def with_fake(**kw: Any) -> int:
+        return real(**kw, client_factory=fixture_client("complete-events.jsonl"))
+
+    monkeypatch.setattr(cli, "run_one", with_fake)
+    run = tmp_path / "run"
+    argv = ["run-one", "--dataset", str(synth_dataset), "--question", "Q01", "--run", str(run)]
+    assert cli.main([*argv, "--quiet"]) == 13
+    err = capsys.readouterr().err
+    assert "the request was sent" in err and not err.startswith("refused")
+
+
+def test_pre_request_corrupt_ledger_refuses_cleanly(
+    tmp_path: Path, synth_dataset: Path, capsys
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (run / "attempts.jsonl").write_text("{not json\n")
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    with pytest.raises(RunRefused, match="line 1 is not valid JSON.*nothing was sent"):
+        attempt(synth_dataset, run, "Q02", lambda: client)
+    assert client.agent.calls == [] and not (run / "answers" / "Q02-a1").exists()
+    assert cli.main(["summarize", "--run", str(run)]) == 1
+    assert "line 1 is not valid JSON" in capsys.readouterr().err
+
+
+def test_any_pre_request_write_failure_removes_the_reserved_dir(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    real = run_mod.write_attempts
+    calls = {"n": 0}
+
+    def fails_once(run_dir: Path, rows: List[Dict[str, Any]]) -> None:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise OSError(28, "No space left on device")
+        real(run_dir, rows)
+
+    monkeypatch.setattr(run_mod, "write_attempts", fails_once)
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    run = tmp_path / "run"
+    with pytest.raises(RunRefused, match="No space left.*nothing was sent"):
+        attempt(synth_dataset, run, "Q01", lambda: client)
+    assert client.agent.calls == [] and not (run / "answers" / "Q01-a1").exists()
+    # The next run is not blocked by a leftover reservation.
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1"]
+
+
+def test_unreadable_attempt_json_does_not_break_reading_the_ledger(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _failing_lock_on(3, monkeypatch)
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (run / "answers" / "Q01-a1" / "attempt.json").write_text("{broken")
+    (a,) = _attempts(run)
+    assert a["terminal_status"] == "in_progress"
+    assert any("unreadable" in m for m in a["missing_data"])
+
+
+def test_untracked_files_are_dirty_whatever_the_git_config(tmp_path: Path) -> None:
+    import subprocess
+
+    from cited_research.accept.run import _implementation_dirty
+
+    pkg = _git_repo_with_package(tmp_path)
+    subprocess.run(["git", "config", "status.showUntrackedFiles", "no"], cwd=tmp_path, check=True)
+    assert _implementation_dirty(pkg) is False
+    (pkg / "accept" / "brand_new.py").write_text("n = 1\n")
+    assert _implementation_dirty(pkg) is True
+
+
+@pytest.mark.parametrize("key", ["python_version", "tabstack_version"])
+def test_runtime_change_in_one_run_is_refused(
+    tmp_path: Path, synth_dataset: Path, key: str
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    m = json.loads((run / "manifest.json").read_text())
+    m[key] = "0.0.1"
+    (run / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(RunRefused, match=f"different runtime \\({key} 0.0.1 ->"):
+        attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+
+
+def test_recovered_row_is_healed_and_stops_being_reported(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from cited_research.accept.summary import render_text
+
+    _failing_lock_on(3, monkeypatch)
+    run = tmp_path / "run"
+    assert attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl")) == 13
+    s = summarize(run)
+    assert s["ledger_recovered"] == ["Q01-a1"]
+    assert "ledger not updated for Q01-a1" in render_text(s)
+    monkeypatch.undo()
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    raw = (run / "attempts.jsonl").read_text()
+    assert "ledger_recovered_from" not in raw
+    healed = _attempts(run)[0]
+    assert healed["terminal_status"] == "complete" and "ledger_recovered_from" not in healed
+    assert any("restored from attempt.json" in m for m in healed["missing_data"])
+    s = summarize(run)
+    assert "ledger_recovered" not in s and "ledger not updated" not in render_text(s)

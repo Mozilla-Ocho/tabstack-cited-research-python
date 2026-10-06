@@ -145,7 +145,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return COMMANDS[args.command](args)
-    except (RunRefused, LedgerLockError, FileNotFoundError, FileExistsError, ValueError) as exc:
+    # Pre-request failures and offline-command failures. run-one handles its own post-request
+    # failures (exit 13) and never raises them here.
+    except (RunRefused, LedgerLockError, OSError, ValueError) as exc:
         sys.stderr.write(f"refused: {exc}\n")
         return EXIT_REFUSED
 
