@@ -1653,3 +1653,149 @@ def test_recovered_row_is_healed_and_stops_being_reported(
     assert any("restored from attempt.json" in m for m in healed["missing_data"])
     s = summarize(run)
     assert "ledger_recovered" not in s and "ledger not updated" not in render_text(s)
+
+
+# --- delta review fixes ------------------------------------------------------------------------
+
+
+def test_unreadable_attempt_json_note_is_not_duplicated(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _failing_lock_on(3, monkeypatch)
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    (run / "answers" / "Q01-a1" / "attempt.json").write_text("{broken")
+    monkeypatch.undo()
+    attempt(synth_dataset, run, "Q02", fixture_client("complete-events.jsonl"))
+    attempt(synth_dataset, run, "Q03", fixture_client("complete-events.jsonl"))
+    row = next(a for a in _attempts(run) if a["attempt_id"] == "Q01-a1")
+    notes = [n for n in row["missing_data"] if "exists but is unreadable" in n]
+    assert len(notes) == 1, notes
+    raw = (run / "attempts.jsonl").read_text()
+    assert raw.count("exists but is unreadable") == 1
+
+
+def _post_request_records_fail(
+    monkeypatch: pytest.MonkeyPatch, durable: bool, ledger: bool
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    if durable:
+        monkeypatch.setattr(
+            run_mod, "_write_durable", lambda *_: OSError(28, "disk full (durable)")
+        )
+    if ledger:
+        _failing_lock_on(3, monkeypatch)
+
+
+@pytest.mark.parametrize(
+    "durable, ledger, says, never",
+    [
+        (False, True, "report it as recovered", "nothing can recover"),
+        (True, False, "was updated with this outcome", "report it as recovered"),
+        (True, True, "still shows this attempt as in_progress", "report it as recovered"),
+    ],
+)
+def test_post_request_message_matches_what_was_saved(
+    tmp_path: Path,
+    synth_dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    durable: bool,
+    ledger: bool,
+    says: str,
+    never: str,
+) -> None:
+    _post_request_records_fail(monkeypatch, durable, ledger)
+    run = tmp_path / "run"
+    assert attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl")) == 13
+    err = " ".join(capsys.readouterr().err.split())
+    assert says in err and never not in err
+    if durable and ledger:
+        assert "disk full (durable)" in err and "still locked" in err, "both errors named"
+        assert "nothing can recover its outcome automatically" in err
+        assert _attempts(run)[0]["terminal_status"] == "in_progress"
+    if durable and not ledger:
+        assert _attempts(run)[0]["terminal_status"] == "complete"
+
+
+def test_closed_stdout_after_a_recorded_success_keeps_exit_code(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Writing to a closed stream raises ValueError, not OSError. After the outcome is recorded,
+    run-one's own summary lines must not turn a success into a refusal."""
+    import io as io_mod
+
+    import cited_research.accept.run as run_mod
+    from cited_research.accept.run import run_one
+
+    real = run_mod.run_research
+    # The runner itself stays quiet so only run-one's final lines hit the closed stream.
+    monkeypatch.setattr(run_mod, "run_research", lambda **kw: real(**{**kw, "quiet": True}))
+    closed = io_mod.StringIO()
+    closed.close()
+    run = tmp_path / "run"
+    code = run_one(
+        synth_dataset,
+        "Q01",
+        run,
+        quiet=False,
+        stdout=closed,
+        client_factory=fixture_client("complete-events.jsonl"),
+        synthetic=True,
+        post_terminal_grace=0.2,
+    )
+    assert code == 0
+    assert [a["terminal_status"] for a in _attempts(run)] == ["complete"]
+
+
+def test_closed_stderr_during_a_post_request_report_is_still_exit_13(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io as io_mod
+    import sys as sys_mod
+
+    _failing_lock_on(3, monkeypatch)
+    closed = io_mod.StringIO()
+    closed.close()
+    monkeypatch.setattr(sys_mod, "stderr", closed)
+    run = tmp_path / "run"
+    assert attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl")) == 13
+
+
+@pytest.mark.parametrize("exc", [OSError(5, "close failed"), KeyboardInterrupt()])
+def test_phase_one_failure_after_the_in_progress_write_removes_the_row(
+    tmp_path: Path,
+    synth_dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exc: BaseException,
+) -> None:
+    import contextlib
+
+    import cited_research.accept.run as run_mod
+
+    real = run_mod.ledger_lock
+    count = {"n": 0}
+
+    @contextlib.contextmanager
+    def lock(run_dir: Path) -> Iterator[None]:
+        count["n"] += 1
+        with real(run_dir):
+            yield
+        if count["n"] == 2:  # the in_progress write succeeded; the lock exit then fails
+            raise exc
+
+    monkeypatch.setattr(run_mod, "ledger_lock", lock)
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    run = tmp_path / "run"
+    expected = RunRefused if isinstance(exc, Exception) else KeyboardInterrupt
+    with pytest.raises(expected) as info:
+        attempt(synth_dataset, run, "Q01", lambda: client)
+    if expected is RunRefused:
+        assert "nothing was sent" in str(info.value)
+    assert client.agent.calls == []
+    assert _attempts(run) == [], "no stray in_progress row"
+    assert not (run / "answers" / "Q01-a1").exists()
+    monkeypatch.undo()
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1"], "question not blocked"

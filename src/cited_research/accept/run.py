@@ -355,11 +355,12 @@ def read_attempts(run_dir: Path) -> List[Dict[str, Any]]:
                     recovered = json.loads(durable.read_text(encoding="utf-8"))
                 except (OSError, ValueError) as exc:
                     row = dict(row)
-                    row.setdefault("missing_data", [])
-                    row["missing_data"] = [
-                        *row["missing_data"],
-                        f"{row['answer_dir']}/{ATTEMPT_RECORD} exists but is unreadable ({exc})",
-                    ]
+                    notes = list(row.get("missing_data") or [])
+                    prefix = f"{row['answer_dir']}/{ATTEMPT_RECORD} exists but is unreadable"
+                    # Idempotent: this row is re-read and re-written by every later run-one.
+                    if not any(isinstance(n, str) and n.startswith(prefix) for n in notes):
+                        notes.append(f"{prefix} ({exc})")
+                    row["missing_data"] = notes
                 else:
                     if (
                         isinstance(recovered, dict)
@@ -492,6 +493,8 @@ def run_one(
     # ---- Phase 1, before the request. Any failure here means nothing was sent: it ends as
     # RunRefused (exit 1) and never leaves a reserved attempt directory behind.
     answer_dir: Optional[Path] = None
+    attempt_id = ""
+    ledger_written = False  # True once the in_progress row may be in attempts.jsonl
     try:
         with ledger_lock(run_dir):
             manifest, _, attempt_id, answer_dir = _reserve_attempt(
@@ -531,10 +534,13 @@ def run_one(
         # Recorded before the request, so a crash leaves a visible in_progress attempt. Re-read
         # under the lock so a parallel process's record is never dropped.
         with ledger_lock(run_dir):
-            write_attempts(run_dir, [*read_attempts(run_dir), record])
+            rows = read_attempts(run_dir)
+            ledger_written = True
+            write_attempts(run_dir, [*rows, record])
     except BaseException as exc:
-        if answer_dir is not None:
-            _remove_if_empty(answer_dir)
+        row_gone = not ledger_written or _remove_ledger_row(run_dir, attempt_id)
+        if answer_dir is not None and row_gone:
+            _remove_if_empty(answer_dir)  # kept if its row could not be removed
         if isinstance(exc, RunRefused) or not isinstance(exc, Exception):
             raise
         raise RunRefused(f"{type(exc).__name__}: {exc}; nothing was sent") from exc
@@ -594,10 +600,23 @@ def run_one(
             if record["terminal_status"] == "complete":
                 stdout.write(f"next: cited-research-accept prepare-review --run {run_dir}\n")
             stdout.flush()
-    except OSError:
+    except (OSError, ValueError):  # ValueError: write to a closed stream
         pass  # the outcome is already recorded; a closed stdout cannot change it
     assert code is not None
     return code
+
+
+def _remove_ledger_row(run_dir: Path, attempt_id: str) -> bool:
+    """Best-effort removal of a pre-request in_progress row when phase 1 failed after writing
+    it: nothing was sent, so the row would only pollute denominators and block the question."""
+    try:
+        with ledger_lock(run_dir):
+            rows = read_attempts(run_dir)
+            if any(a.get("attempt_id") == attempt_id for a in rows):
+                write_attempts(run_dir, [a for a in rows if a.get("attempt_id") != attempt_id])
+    except Exception:
+        return False
+    return True
 
 
 def _remove_if_empty(path: Path) -> None:
@@ -716,22 +735,32 @@ def _report_post_request_failure(
             f"({scrub_text(type(failure).__name__ + ': ' + str(failure))}); status "
             "outcome_unrecorded."
         )
-    if durable_error is None:
-        lines.append(f"The attempt record is in {answer_dir / ATTEMPT_RECORD}.")
+    ledger = run_dir / "attempts.jsonl"
+    durable = answer_dir / ATTEMPT_RECORD
+    if durable_error is None and ledger_error is None:
+        lines.append(f"The attempt record is in {durable} and {ledger} was updated.")
+    elif durable_error is None:
+        lines.append(
+            f"The attempt record is in {durable}. {ledger} could not be updated "
+            f"({ledger_error}); summarize and the next run-one read the attempt record and "
+            "report it as recovered."
+        )
+    elif ledger_error is None:
+        lines.append(
+            f"{durable} could not be written ({durable_error}), but {ledger} was updated with "
+            "this outcome."
+        )
     else:
         lines.append(
-            f"{answer_dir / ATTEMPT_RECORD} could not be written ({durable_error}); the files "
-            f"in {answer_dir} are what remains."
-        )
-    if ledger_error is not None:
-        lines.append(
-            f"{run_dir / 'attempts.jsonl'} could not be updated ({ledger_error}); summarize and "
-            "the next run-one read the attempt record and report it as recovered."
+            f"{durable} could not be written ({durable_error}) and {ledger} could not be updated "
+            f"({ledger_error}). The ledger still shows this attempt as in_progress, and nothing "
+            f"can recover its outcome automatically; the files in {answer_dir} and this message "
+            "are what remains."
         )
     lines.append("Do not re-run the request to repair the records.")
     try:
         sys.stderr.write(" ".join(lines) + "\n")
-    except OSError:
+    except (OSError, ValueError):  # ValueError: write to a closed stream
         pass
 
 
