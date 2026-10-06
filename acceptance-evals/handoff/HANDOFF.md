@@ -139,7 +139,10 @@ Claim row (as written in `reviews/claims.csv`):
 ```
 
 Result: coverage E1, E2, E3 all `2`. Claims (enumeration locked; the report's fourth sentence
-was split into C04a and C04b): C02, C03, C04b `2`; C01 and C04a `1`. C01 says web_search "returns an array"; the docs say it "Returns an object containing: results (array)". The first pass scored C01 `2`; a second, blind AI review (which did not see the first scores) caught it, and the sheet was corrected. CF1 ("States that web_search
+was split into C04a and C04b): C02, C03, C04b `2`; C01 and C04a `1`. C01 says web_search
+"returns an array"; the docs say it "Returns an object containing: results (array)". The first
+pass scored C01 `2`; a second, blind AI review (which did not see the first scores) caught it,
+and the sheet was corrected. CF1 ("States that web_search
 returns full page content.") not triggered. `decision` left blank: no release criteria beyond
 CF1 were frozen for this pilot, so accept/reject stays blank. The dev.to page
 ([3], cited on C03 only) was not opened: the approved boundary allowed one docs fetch. Source [2]
