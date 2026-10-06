@@ -1,0 +1,30 @@
+Q05 reference evidence (reviewer-side; never sent to the answering provider)
+
+URL:            https://docs.ollama.com/capabilities/web-search
+Fetched with:   curl -sS -L (no Tabstack call), one request
+Retrieved at:   2026-10-06T17:37:54Z (local clock, UTC); server Date header: Tue, 06 Oct 2026 17:37:55 GMT
+HTTP status:    200, no redirect (url_effective = the URL above)
+Body:           491,321 bytes, sha256 b1012611a2c856e5089dc79d4ae90f8f81dc9f368bd9aec60ea7a2f17e8cba17
+                (HTML not committed; only the passages needed for review are kept)
+Response ETag:  W/"7kaqwi093naj1b"
+CDN:            cf-cache-status: HIT, age: 8837 (seconds); the copy served was cached, not freshly rendered
+Version/date:   the page states no version or last-updated date in this section
+
+Passage as rendered text (tags stripped, line breaks between elements joined with spaces),
+section "Web search API" > "Response":
+
+  Returns an object containing:
+  results (array): array of search result objects, each containing:
+  title (string): the title of the web page
+  url (string): the URL of the web page
+  content (string): relevant content snippet from the web page
+
+The frozen Q05 passage "content (string): relevant content snippet from the web page" matches
+the current page word for word.
+
+Adjacent context on the same page (for reviewers; not part of the frozen passage):
+
+  Web search API: "Performs a web search for a single query and returns relevant results."
+  Request: "POST https://ollama.com/api/web_search"
+  "max_results (integer, optional): maximum results to return (default 5, max 10)"
+  Web fetch API: "Fetches a single web page by URL and returns its content."

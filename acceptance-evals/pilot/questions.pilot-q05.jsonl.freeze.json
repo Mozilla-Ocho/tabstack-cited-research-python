@@ -1,0 +1,16 @@
+{
+  "category_counts": {
+    "exact_contract": 1
+  },
+  "dataset_file": "questions.pilot-q05.jsonl",
+  "dataset_sha256": "bd350908653912191e85367af2ef944f14bfb951b1e02079302b5ae9b0ff68e8",
+  "dataset_version": "pilot-q05-v1",
+  "design": "subset",
+  "frozen_at_utc": "2026-10-06T17:48:25.004Z",
+  "max_evidence_age_days": 30,
+  "output_instruction": "Answer from current public documentation and cite the sources you rely on. If the sources do not establish part of the answer, say which part.",
+  "question_ids": [
+    "Q05"
+  ],
+  "schema": "cited-research-accept/freeze/v1"
+}
