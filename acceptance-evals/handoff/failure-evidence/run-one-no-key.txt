@@ -1,0 +1,3 @@
+$ (TABSTACK_API_KEY unset) uv run cited-research-accept run-one --dataset acceptance-evals/pilot/questions.pilot-q05.jsonl --question Q05 --run /tmp/never-created --pilot
+TABSTACK_API_KEY is not set. Export it in your shell; the CLI never accepts it as a flag.
+[exit 5]

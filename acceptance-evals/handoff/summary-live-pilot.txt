@@ -1,0 +1,25 @@
+LIVE PILOT (pilot_only=true; one real Tabstack /research call on 2026-10-06; not a scored result)
+$ uv run cited-research-accept summarize --run acceptance-evals/runs/20261006-pilot-q05
+run 20261006-pilot-q05  dataset pilot-q05-v1 (sha256 bd3509086539...)
+provenance: 0 live scored, 1 pilot, 0 synthetic attempts (pilot and synthetic are excluded from live scored totals)
+questions: 1 intended, 1 attempted
+attempts: 1 total; complete 1
+
+[live_scored] 0 attempts
+  responses: 0 completed, 0 fully reviewed, 0 accepted, 0 rejected, 0 unreviewed or undecided
+  accepted / attempts: unavailable (no attempts)
+  coverage elements: 0 full, 0 partial, 0 missing, 0 U, 0 blank; full over inspected: unavailable (nothing inspected)
+  claims: 0 supported, 0 partial, 0 unsupported, 0 U, 0 blank; supported over inspected: unavailable (nothing inspected); enumeration locked on 0 of 0 responses
+  usage: 0 known, 0 missing
+  cost per accepted answer: unavailable (no attempts in this scope)
+
+[pilot] 1 attempts: complete 1
+  responses: 1 completed, 1 fully reviewed, 0 accepted, 0 rejected, 1 unreviewed or undecided
+  accepted / attempts: 0/1
+  coverage elements: 3 full, 0 partial, 0 missing, 0 U, 0 blank; full over inspected: 3/3
+  claims: 4 supported, 1 partial, 0 unsupported, 0 U, 0 blank; supported over inspected: 4/5; enumeration locked on 1 of 1 responses
+  timing Q05-a1 complete: first event 645 ms, terminal 8882 ms
+  usage: 0 known, 1 missing
+  cost per accepted answer: unavailable (usage missing for 1 of 1 attempts; 1 completed responses have no final accept/reject; no accepted answers)
+summary -> acceptance-evals/runs/20261006-pilot-q05/summary.json
+[exit 0]

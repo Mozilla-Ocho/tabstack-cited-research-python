@@ -1,0 +1,35 @@
+{
+  "config": {
+    "application_retries": 0,
+    "dataset_file": "questions.pilot-q05.jsonl",
+    "dataset_sha256": "bd350908653912191e85367af2ef944f14bfb951b1e02079302b5ae9b0ff68e8",
+    "dataset_version": "pilot-q05-v1",
+    "deadline_seconds": 300.0,
+    "fetch_timeout_seconds": null,
+    "mode": "fast",
+    "nocache": true,
+    "output_instruction": "Answer from current public documentation and cite the sources you rely on. If the sources do not establish part of the answer, say which part.",
+    "pilot_only": true,
+    "retry_policy": "SDK max_retries=0; no application retries; one POST per attempt",
+    "sdk_max_retries": 0,
+    "silence_timeout_seconds": 120.0,
+    "synthetic": false
+  },
+  "created_at_utc": "2026-10-06T17:49:45.692Z",
+  "dataset_path": "../../pilot/questions.pilot-q05.jsonl",
+  "freeze_sha256": "7849f7537dcc61c91c9ba49f68e72c0bb491efbe3c49079091ea4f106bf5d3a7",
+  "implementation_commit": "452aa44c63d110e85e0c71f3118b8a81ca80a293",
+  "implementation_dirty": false,
+  "intended_question_ids": [
+    "Q05"
+  ],
+  "notes": [
+    "pilot_only and synthetic attempts are excluded from live scored totals.",
+    "A client timeout ends the wait; it does not establish provider cancellation."
+  ],
+  "os": "Darwin 25.6.0 arm64",
+  "python_version": "3.12.13",
+  "run_id": "20261006-pilot-q05",
+  "schema": "cited-research-accept/run/v1",
+  "tabstack_version": "2.8.5"
+}

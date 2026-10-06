@@ -1,0 +1,3 @@
+Which fields does the Example Widgets API list?
+
+Answer from current public documentation and cite the sources you rely on. If the sources do not establish part of the answer, say which part.

@@ -1,0 +1,4 @@
+﻿run_id,attempt_id,question_id,critical_failure_conditions,critical_failures_triggered,claim_enumeration_locked,decision,reviewer,reviewed_at_utc,notes
+synthetic-run,Q01-a1,Q01,CF1: Invents a field.,none,yes,accept,synthetic fixture,1970-01-01T00:00:00Z,
+synthetic-run,Q02-a1,Q02,CF1: Invents a limit.,CF1,yes,reject,synthetic fixture,1970-01-01T00:00:00Z,
+synthetic-run,Q01-a2,Q01,CF1: Invents a field.,,,,,,

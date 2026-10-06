@@ -1,0 +1,7 @@
+﻿run_id,attempt_id,question_id,element_id,criterion,answer_excerpt,score,reason,reviewer,reviewed_at_utc
+synthetic-run,Q01-a1,Q01,E1,Name the documented field (synthetic).,,2,,synthetic fixture,1970-01-01T00:00:00Z
+synthetic-run,Q01-a1,Q01,E2,State the documented limit (synthetic).,,1,,synthetic fixture,1970-01-01T00:00:00Z
+synthetic-run,Q02-a1,Q02,E1,Name the documented field (synthetic).,,2,,synthetic fixture,1970-01-01T00:00:00Z
+synthetic-run,Q02-a1,Q02,E2,State the documented limit (synthetic).,,0,,synthetic fixture,1970-01-01T00:00:00Z
+synthetic-run,Q01-a2,Q01,E1,Name the documented field (synthetic).,,U,,synthetic fixture,1970-01-01T00:00:00Z
+synthetic-run,Q01-a2,Q01,E2,State the documented limit (synthetic).,,,,,

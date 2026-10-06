@@ -1,0 +1,6 @@
+﻿run_id,attempt_id,question_id,claim_id,answer_text,citation_ids,citation_present,source_url,passage,source_date_or_version,retrieved_at_utc,support,reason,reviewer,reviewed_at_utc,auto_flags
+synthetic-run,Q01-a1,Q01,C01,First sentence cites the third page [3].,[3],yes,https://mid.example/three,,,,2,,,,
+synthetic-run,Q01-a1,Q01,C02,Second cites the first [1].,[1],yes,https://zeta.example/one,,,,2,,,,
+synthetic-run,Q01-a1,Q01,C03,An uncited sentence.,,no,,,,,0,,,,no inline citation
+synthetic-run,Q01-a1,Q01,C04,"A bullet cites two [2, 3].",[2][3],yes,https://alpha.example/two ; https://mid.example/three,,,,1,,,,
+synthetic-run,Q01-a2,Q01,C01,A claim [1].,[1],yes,https://example.org/doc,,,,,,,,

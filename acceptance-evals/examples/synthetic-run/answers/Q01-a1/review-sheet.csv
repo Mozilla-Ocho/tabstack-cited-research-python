@@ -1,0 +1,5 @@
+﻿claim_id,answer_text,citation_ids,source_url,passage,source_date_or_version,retrieved_at_utc,support,reason,cited_page_ids,auto_flags,api_claims
+C01,First sentence cites the third page [3].,[3],https://mid.example/three,,,,,,m3,,
+C02,Second cites the first [1].,[1],https://zeta.example/one,,,,,,z1,,
+C03,An uncited sentence.,,,,,,,,,no inline citation,
+C04,"A bullet cites two [2, 3].",[2][3],https://alpha.example/two ; https://mid.example/three,,,,,,a2 ; m3,,

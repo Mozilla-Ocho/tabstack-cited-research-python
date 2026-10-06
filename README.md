@@ -114,6 +114,8 @@ fetched. Only `complete.metadata.cited_pages` identifies sources.
 Changed in schema 2: a stream that closes early exits 6 (it was 2). Exits 7 and 8 are new.
 Exits 9, 10, and 11 were added after the trace run. Before them a mid-stream failure exited 1
 with a traceback and wrote no `run-manifest.json`, and a `complete` without a report exited 8.
+Exit 12 (`deadline_exceeded`, an overall client deadline) is used only by
+`cited-research-accept run-one --deadline`; this CLI has no `--deadline` flag.
 Every exit except 5 writes `run-manifest.json`, `events.sanitized.jsonl`, and
 `trace-diagram.md`.
 `run-manifest.json` records the same state as `terminal_status`: `complete`, `task_error`,
@@ -207,6 +209,29 @@ described in `artifacts/trace-run/REVIEW-NOTES.md`.
 See [`evals/README.md`](evals/README.md) and [`evals/PROTOCOL.md`](evals/PROTOCOL.md). The
 protocol was committed before any comparison output was inspected. Only the Q01 harness pilot has
 run; `FULL_EVALUATION_RUN=false`.
+
+## Acceptance evaluation kit
+
+`cited-research-accept` and [`acceptance-evals/`](acceptance-evals/README.md) check whether one
+current-answer workflow meets its own acceptance rules: a versioned 20-question set (five
+categories of four), one frozen question per request, separate coverage and claim reviews, and a
+summary that keeps failures, blank or `U` scores, and missing usage visible.
+
+```bash
+uv run cited-research-accept validate --dataset acceptance-evals/questions.candidate.jsonl
+uv run cited-research-accept run-one \
+  --dataset acceptance-evals/pilot/questions.pilot-q05.jsonl \
+  --question Q05 \
+  --run acceptance-evals/runs/20261006-pilot-q05 \
+  --mode fast --nocache --silence-timeout 120 --deadline 300 --pilot
+uv run cited-research-accept prepare-review --run acceptance-evals/runs/20261006-pilot-q05
+uv run cited-research-accept summarize --run acceptance-evals/runs/20261006-pilot-q05
+```
+
+Only `run-one` calls the API, once per invocation, with SDK retries off. 19 of the 20 candidate
+questions are still `pending`, so only the one-question pilot set is frozen and runnable. One
+live pilot ran on 2026-10-06 (`pilot_only=true`); `acceptance-evals/examples/synthetic-run/` is a
+synthetic offline-fixture run for the summary, not API output.
 
 ## What one run proves
 

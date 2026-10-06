@@ -1,0 +1,68 @@
+{
+  "application_retries": 0,
+  "architecture": "arm64",
+  "caveats": [
+    "Timeline is a request lifecycle, not a source-level execution trace.",
+    "complete is evidence the task terminated, not that citations are correct.",
+    "API `claims` are machine-generated and do not verify the page.",
+    "Inline [n] markers are joined to cited_pages by position (SDK: ordered by first citation).",
+    "every cited page has claims=[]"
+  ],
+  "cited_page_count": 3,
+  "completed_at_utc": "2026-10-06T17:49:54.673Z",
+  "credit_evidence": {
+    "notes": "Do not infer final call cost from the public per-action rate.",
+    "source": "unavailable",
+    "unit": "credits",
+    "value": null
+  },
+  "deadline_seconds": 300.0,
+  "duration_ms": 8882,
+  "error": null,
+  "event_counts": {
+    "complete": 1,
+    "iteration:end": 1,
+    "iteration:start": 1,
+    "planning:end": 1,
+    "planning:start": 1,
+    "searching:end": 1,
+    "searching:start": 1,
+    "start": 1,
+    "writing:end": 1,
+    "writing:start": 1
+  },
+  "event_sequence": [
+    "start",
+    "planning:start",
+    "planning:end",
+    "iteration:start",
+    "searching:start",
+    "searching:end",
+    "iteration:end",
+    "writing:start",
+    "writing:end",
+    "complete"
+  ],
+  "fetch_timeout_seconds": null,
+  "first_event_ms": 645,
+  "mode": "fast",
+  "nocache": true,
+  "os": "Darwin 25.6.0",
+  "pages_analyzed": 3.0,
+  "post_run_note": null,
+  "python_version": "3.12.13",
+  "query_sha256": "af14352f0bbbcbcc7bb4dacb43aef83264634527ae0ad6bd1c08fbea2b1d467d",
+  "rejected_link_count": 0,
+  "repository_commit": "452aa44c63d110e85e0c71f3118b8a81ca80a293",
+  "review_state": "review_needed",
+  "schema_version": 2,
+  "sdk_max_retries": 0,
+  "silence_timeout_seconds": 120.0,
+  "started_at_utc": "2026-10-06T17:49:45.752Z",
+  "stream_closed_after_terminal": true,
+  "tabstack_version": "2.8.5",
+  "terminal_status": "complete",
+  "timestamp_types": [
+    "float"
+  ]
+}

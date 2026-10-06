@@ -1,0 +1,2 @@
+﻿run_id,attempt_id,question_id,terminal_status,usage_value,usage_unit,usage_source,usage_receipt_ref,notes
+20261006-pilot-q05,Q05-a1,Q05,complete,,,,,"No per-request usage receipt: the /research stream has no credit field and no console usage record was checked for this attempt. Unavailable, not zero."

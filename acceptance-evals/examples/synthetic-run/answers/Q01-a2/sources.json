@@ -1,0 +1,20 @@
+[
+  {
+    "position": 1,
+    "id": "pg_1",
+    "url": "https://example.org/doc",
+    "claims": [
+      "A claim"
+    ],
+    "source_queries": [
+      "q1"
+    ],
+    "title": "Example doc",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "position": 1,
+    "id": "WMjKTb",
+    "url": "https://docs.ollama.com/capabilities/web-search",
+    "claims": [],
+    "source_queries": [
+      "Ollama web-search API fields",
+      "Ollama web-search API result structure",
+      "Ollama web-search API content field",
+      "Ollama web-search API documentation",
+      "Ollama web-search API response schema"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  },
+  {
+    "position": 2,
+    "id": "Xv76iu",
+    "url": "https://docs.ollama.com/capabilities/web-search.md",
+    "claims": [],
+    "source_queries": [
+      "Ollama web-search API fields",
+      "Ollama web-search API result structure",
+      "Ollama web-search API content field",
+      "Ollama web-search API documentation",
+      "Ollama web-search API response schema"
+    ],
+    "title": "Web search",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": 1,
+    "malformed_fields": []
+  },
+  {
+    "position": 3,
+    "id": "dFZ3-x",
+    "url": "https://dev.to/aairom/testing-ollama-web-search-and-a-thinking-model-1dh7",
+    "claims": [],
+    "source_queries": [
+      "Ollama web-search API fields",
+      "Ollama web-search API result structure",
+      "Ollama web-search API content field",
+      "Ollama web-search API documentation",
+      "Ollama web-search API response schema"
+    ],
+    "title": "Testing Ollama Web Search 🔍 and a Thinking Model 💭",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  }
+]

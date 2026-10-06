@@ -1,0 +1,50 @@
+[
+  {
+    "position": 1,
+    "id": "z1",
+    "url": "https://zeta.example/one",
+    "claims": [],
+    "source_queries": [
+      "q"
+    ],
+    "title": "Zeta",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  },
+  {
+    "position": 2,
+    "id": "a2",
+    "url": "https://alpha.example/two",
+    "claims": [],
+    "source_queries": [
+      "q"
+    ],
+    "title": "Alpha",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  },
+  {
+    "position": 3,
+    "id": "m3",
+    "url": "https://mid.example/three",
+    "claims": [],
+    "source_queries": [
+      "q"
+    ],
+    "title": "Mid",
+    "relevance": null,
+    "reliability": null,
+    "link_ok": true,
+    "link_issue": null,
+    "duplicate_of_position": null,
+    "malformed_fields": []
+  }
+]
