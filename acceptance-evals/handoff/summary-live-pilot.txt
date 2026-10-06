@@ -17,7 +17,7 @@ attempts: 1 total; complete 1
   responses: 1 completed, 1 fully reviewed, 0 accepted, 0 rejected, 1 unreviewed or undecided
   accepted / attempts: 0/1
   coverage elements: 3 full, 0 partial, 0 missing, 0 U, 0 blank; full over inspected: 3/3
-  claims: 4 supported, 1 partial, 0 unsupported, 0 U, 0 blank; supported over inspected: 4/5; enumeration locked on 1 of 1 responses
+  claims: 3 supported, 2 partial, 0 unsupported, 0 U, 0 blank; supported over inspected: 3/5; enumeration locked on 1 of 1 responses
   timing Q05-a1 complete: first event 645 ms, terminal 8882 ms
   usage: 0 known, 1 missing
   cost per accepted answer: unavailable (usage missing for 1 of 1 attempts; 1 completed responses have no final accept/reject; no accepted answers)

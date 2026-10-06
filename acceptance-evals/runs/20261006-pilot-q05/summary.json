@@ -7,7 +7,7 @@
   },
   "dataset_sha256": "bd350908653912191e85367af2ef944f14bfb951b1e02079302b5ae9b0ff68e8",
   "dataset_version": "pilot-q05-v1",
-  "generated_at_utc": "2026-10-06T17:54:02.431Z",
+  "generated_at_utc": "2026-10-06T20:19:04.234Z",
   "implementation_commit": "452aa44c63d110e85e0c71f3118b8a81ca80a293",
   "provenance": {
     "live_scored": 0,
@@ -99,13 +99,13 @@
         "enumeration_locked": 1,
         "enumeration_unlocked": 0,
         "inspected": 5,
-        "partial": 1,
-        "supported": 4,
+        "partial": 2,
+        "supported": 3,
         "supported_rate": {
           "denominator": 5,
-          "numerator": 4,
+          "numerator": 3,
           "status": "available",
-          "value": 0.8
+          "value": 0.6
         },
         "unsupported": 0
       },

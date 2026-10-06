@@ -119,7 +119,7 @@ sending events (overall deadline), and a `KeyboardInterrupt` inside the request.
   3 `https://dev.to/aairom/testing-ollama-web-search-and-a-thinking-model-1dh7`. All three had
   `claims: []`.
 
-## 6. Review (reviewer: Claude (AI agent), pending human confirmation)
+## 6. Review (reviewer: Claude (AI agent); independently re-checked by a second blind AI review)
 
 Reference passage, re-fetched before the run with one curl request
 (`../evidence/Q05-ollama-web-search.txt`, retrieved 2026-10-06T17:37:54Z): "content (string):
@@ -129,19 +129,19 @@ word.
 Coverage row (as written in `reviews/coverage.csv`):
 
 ```csv
-20261006-pilot-q05,Q05-a1,Q05,E2,"Describe content as a relevant snippet, not the full page.","the `content` field within each web search result contains a **relevant content snippet** from the web page, not the full page content [1][2][3]",2,Matches the frozen passage 'content (string): relevant content snippet from the web page' and answers the full-page half of the question.,"Claude (AI agent), pending human confirmation",2026-10-06T17:50:51Z
+20261006-pilot-q05,Q05-a1,Q05,E2,"Describe content as a relevant snippet, not the full page.","the `content` field within each web search result contains a **relevant content snippet** from the web page, not the full page content [1][2][3]",2,Matches the frozen passage 'content (string): relevant content snippet from the web page' and answers the full-page half of the question.,Claude (AI agent); independently re-checked by a second blind AI review,2026-10-06T17:50:51Z
 ```
 
 Claim row (as written in `reviews/claims.csv`):
 
 ```csv
-20261006-pilot-q05,Q05-a1,Q05,C04a,"For retrieving the **full content** of a specific web page, Ollama offers a separate `web_fetch` API",[1][2],yes,https://docs.ollama.com/capabilities/web-search,Web fetch API: Fetches a single web page by URL and returns its content.,Documentation as retrieved; no version or date stated in this section.,2026-10-06T17:37:54Z,1,"web_fetch is documented as a separate API on the same page, but the docs say 'main content', not 'full content'; the answer upgrades the qualifier.","Claude (AI agent), pending human confirmation",2026-10-06T17:50:51Z,[2] likely same page as [1]
+20261006-pilot-q05,Q05-a1,Q05,C04a,"For retrieving the **full content** of a specific web page, Ollama offers a separate `web_fetch` API",[1][2],yes,https://docs.ollama.com/capabilities/web-search,Web fetch API: Fetches a single web page by URL and returns its content.,Documentation as retrieved; no version or date stated in this section.,2026-10-06T17:37:54Z,1,"web_fetch is documented as a separate API on the same page, but the docs say 'main content', not 'full content'; the answer upgrades the qualifier.",Claude (AI agent); independently re-checked by a second blind AI review,2026-10-06T17:50:51Z,[2] likely same page as [1]
 ```
 
 Result: coverage E1, E2, E3 all `2`. Claims (enumeration locked; the report's fourth sentence
-was split into C04a and C04b): C01, C02, C03, C04b `2`; C04a `1`. CF1 ("States that web_search
+was split into C04a and C04b): C02, C03, C04b `2`; C01 and C04a `1`. C01 says web_search "returns an array"; the docs say it "Returns an object containing: results (array)". The first pass scored C01 `2`; a second, blind AI review (which did not see the first scores) caught it, and the sheet was corrected. CF1 ("States that web_search
 returns full page content.") not triggered. `decision` left blank: no release criteria beyond
-CF1 are frozen for this pilot, so accept/reject is for the human release owner. The dev.to page
+CF1 were frozen for this pilot, so accept/reject stays blank. The dev.to page
 ([3], cited on C03 only) was not opened: the approved boundary allowed one docs fetch. Source [2]
 is the `.md` variant of [1], so C01 to C04 rest on one official page, not two.
 
