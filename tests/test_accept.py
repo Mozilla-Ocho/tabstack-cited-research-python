@@ -2038,3 +2038,64 @@ def test_prepare_review_refuses_cleanly_when_a_complete_answer_lost_files(
     (run / "answers" / "Q01-a1" / missing).unlink()
     assert cli.main(["prepare-review", "--run", str(run)]) == 1
     assert "report or sources cannot be read" in capsys.readouterr().err
+
+
+# --- dotfile emptiness --------------------------------------------------------------------------
+
+
+def test_reservation_with_only_dotfiles_is_empty_not_a_placeholder(
+    tmp_path: Path, synth_dataset: Path
+) -> None:
+    run = tmp_path / "run"
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    reserved = run / "answers" / "Q02-a1"
+    reserved.mkdir()
+    (reserved / ".DS_Store").write_bytes(b"\0")
+    assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1"]
+    s = summarize(run)
+    assert "ledger_placeholders" not in s and s["scopes"]["synthetic"]["attempts"] == 1
+    (reserved / "report.md").write_text("partial\n")
+    assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1", "Q02-a1"]
+    assert summarize(run)["ledger_placeholders"] == ["Q02-a1"]
+
+
+def test_dot_directory_makes_a_reservation_non_empty(tmp_path: Path) -> None:
+    from cited_research.accept.run import is_effectively_empty
+
+    d = tmp_path / "Q01-a1"
+    (d / ".hidden").mkdir(parents=True)
+    assert is_effectively_empty(d) is False
+    assert is_effectively_empty(tmp_path / "missing") is False
+
+
+def test_failed_reservation_with_a_dotfile_is_still_cleaned_up(
+    tmp_path: Path, synth_dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cited_research.accept.run as run_mod
+
+    real = run_mod.write_attempts
+
+    def dotfile_then_fail(run_dir: Path, rows: List[Dict[str, Any]]) -> None:
+        (run_dir / "answers" / "Q01-a1" / ".DS_Store").write_bytes(b"\0")
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(run_mod, "write_attempts", dotfile_then_fail)
+    client = ZeroRetryFake(load_events("complete-events.jsonl"))
+    run = tmp_path / "run"
+    with pytest.raises(RunRefused, match="nothing was sent"):
+        attempt(synth_dataset, run, "Q01", lambda: client)
+    assert not (run / "answers" / "Q01-a1").exists(), "dotfile removed, then the directory"
+    monkeypatch.setattr(run_mod, "write_attempts", real)
+    attempt(synth_dataset, run, "Q01", fixture_client("complete-events.jsonl"))
+    assert [a["attempt_id"] for a in _attempts(run)] == ["Q01-a1"]
+
+
+def test_cleanup_never_removes_a_reservation_with_real_content(tmp_path: Path) -> None:
+    from cited_research.accept.run import _remove_if_empty
+
+    d = tmp_path / "Q01-a1"
+    d.mkdir()
+    (d / ".DS_Store").write_bytes(b"\0")
+    (d / "question.txt").write_text("q\n")
+    _remove_if_empty(d)
+    assert (d / "question.txt").exists() and (d / ".DS_Store").exists()

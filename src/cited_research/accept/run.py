@@ -484,11 +484,7 @@ def _scan_unlisted(run_dir: Path, known: set) -> Tuple[List[Dict[str, Any]], Lis
         if not ATTEMPT_ID.fullmatch(d.name):
             foreign.append({"dir": f"answers/{d.name}", "reason": "not an attempt ID"})
             continue
-        try:
-            empty = not any(d.iterdir())
-        except OSError:
-            empty = False
-        if empty:
+        if is_effectively_empty(d):
             continue  # reserved; the request has not started
         rec, why = (None, "missing")
         durable = d / ATTEMPT_RECORD
@@ -819,8 +815,24 @@ def _remove_ledger_row(run_dir: Path, attempt_id: str) -> bool:
     return True
 
 
-def _remove_if_empty(path: Path) -> None:
+def is_effectively_empty(path: Path) -> bool:
+    """True if the directory holds nothing but dotfiles (.DS_Store and the like), which the OS
+    or a file browser may add to a reservation whose request never started. A dot-named
+    directory or any other entry makes it non-empty; an unreadable directory is non-empty."""
     try:
+        return all(e.name.startswith(".") and e.is_file() for e in path.iterdir())
+    except OSError:
+        return False
+
+
+def _remove_if_empty(path: Path) -> None:
+    """Remove a never-sent reservation. Only when it is effectively empty: its dotfiles are
+    removed first, nothing else ever is; anything unexpected leaves the directory in place."""
+    if not is_effectively_empty(path):
+        return
+    try:
+        for e in path.iterdir():
+            e.unlink()
         path.rmdir()
     except OSError:
         pass
