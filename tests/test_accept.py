@@ -528,8 +528,11 @@ def test_templates_match_generated_columns() -> None:
     assert header("attempts-template.csv") == list(ATTEMPT_COLUMNS)
     assert header("release-review-template.csv") == list(RELEASE_COLUMNS)
     with (KIT / "release-review-template.csv").open(encoding="utf-8") as fh:
-        gates = [r["gate"] for r in csv.DictReader(fh)]
-    assert gates == [g for g, _, _ in RELEASE_GATES] and len(gates) == 7
+        rows = [
+            (r["gate"], r["evidence_to_attach"], r["decision_to_record"])
+            for r in csv.DictReader(fh)
+        ]
+    assert rows == list(RELEASE_GATES) and len(rows) == 7
 
 
 def test_prepare_review_writes_blank_sheets(tmp_path: Path, synth_dataset: Path) -> None:
