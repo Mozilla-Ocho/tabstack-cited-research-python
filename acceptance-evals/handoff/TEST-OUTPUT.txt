@@ -1,5 +1,5 @@
-Recorded 2026-10-06T19:56:50Z on Darwin 25.6.0 arm64; uv 0.11.6 (65950801c 2026-04-09 aarch64-apple-darwin); Python 3.12.13; tabstack 2.8.5
-HEAD: 6b042ea871638b8b8e8e295757e4a6495390cb0e; uncommitted changes under src/ tests/ pyproject.toml uv.lock: 0
+Recorded 2026-10-07T18:53:40Z on Darwin 25.6.0 arm64; uv 0.11.6 (65950801c 2026-04-09 aarch64-apple-darwin); Python 3.12.13; tabstack 2.8.5
+HEAD: 0654ad5b13598badb2379ee32fa21cc807ffabb9; uncommitted changes under src/ tests/ pyproject.toml uv.lock: 0
 
 $ uv run ruff check
 All checks passed!
@@ -17,7 +17,7 @@ $ uv run pytest -q -p no:cacheprovider --color=no
 ......................................................................................................... [ 41%]
 ......................................................................................................... [ 82%]
 .............................................                                                             [100%]
-255 passed in 24.41s
+255 passed in 24.35s
 [exit 0]
 
 $ uv run pytest --collect-only -q -p no:cacheprovider | cut -d: -f1 | sort | uniq -c
@@ -33,4 +33,4 @@ $ uv run pytest --collect-only -q -p no:cacheprovider | cut -d: -f1 | sort | uni
 
 $ UV_PROJECT_ENVIRONMENT=/tmp/py39 uv run --frozen --python /usr/bin/python3 pytest -q -p no:cacheprovider
 (Python 3.9.6, throwaway env)
-255 passed in 24.86s
+255 passed in 25.17s
