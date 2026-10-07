@@ -251,33 +251,37 @@ RELEASE_STATUS_VALUES = ("pass", "fail", "unknown")
 RELEASE_GATES: Sequence[Tuple[str, str, str]] = (
     (
         "Scope and acceptance",
-        "Workflow contract and critical failure rules",
-        "What the feature handles and refuses",
+        "Supported workflow and critical failure rules",
+        "What the feature handles or refuses",
     ),
     (
         "Answer quality",
-        "Coverage review and inspected claim support",
-        "Which outputs the application accepts",
-    ),
-    (
-        "Operational completion",
-        "Attempt ledger and failure fixtures",
-        "How failures remain contained",
+        "Coverage and claim-support reviews",
+        "Which answers the application accepts",
     ),
     (
         "Time budget",
-        "Client timing and deadline tests",
-        "Whether the interaction meets the product requirement",
+        "Client timings and deadline tests",
+        "Whether the interaction meets its wait policy",
     ),
-    ("Cost", "Matched usage records and limits", "Whether the workload fits its budget"),
+    (
+        "Failure handling",
+        "Attempt log, failure fixtures, and fallback tests",
+        "How the application contains failures",
+    ),
+    (
+        "Cost",
+        "Matched usage records and budget controls",
+        "Whether the workload fits the budget",
+    ),
     (
         "Data and security",
         "Processing map and reviewed controls",
-        "Whether the architecture meets the requirements",
+        "Whether the architecture meets requirements",
     ),
     (
         "Ownership and rollback",
-        "Runbook, owner, and disable-path test",
+        "Runbook and disable-path test",
         "Who acts when behavior changes",
     ),
 )
