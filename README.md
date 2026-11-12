@@ -260,6 +260,13 @@ and outputs, is stored for 90 days unless you delete it. Use public, non-sensiti
 this example. For anything private, get engineering and legal review before calling the hosted
 API.
 
+## Feedback
+
+Report a problem or request a feature in
+[tabstack-feedback](https://github.com/Mozilla-Ocho/tabstack-feedback/issues/new/choose). Include
+the SDK version and the `x-trace-id` from the failing response when relevant. Never paste API keys
+or personal data into an issue.
+
 ## License
 
 MIT.
